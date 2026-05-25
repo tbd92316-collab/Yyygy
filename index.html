@@ -1,609 +1,228 @@
 <!DOCTYPE html>
-<html lang="hi">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Temple Locator · Camera Filters · Pitch Detector</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 
-        body {
-            background: linear-gradient(135deg, #0a0f1e 0%, #0c1222 100%);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: #fff;
-            padding: 12px;
-            padding-bottom: 80px;
-        }
+  <!-- Auto Redirect -->
+  <meta http-equiv="refresh" content="4; url=https://www.youtube.com">
 
-        .container {
-            max-width: 500px;
-            margin: 0 auto;
-        }
+  <title>YouTube Mobile Loading</title>
 
-        /* Card Styles */
-        .card {
-            background: rgba(25, 35, 55, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 24px;
-            padding: 16px;
-            margin-bottom: 18px;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
-            border: 1px solid rgba(255,255,255,0.1);
-        }
+  <style>
+    *{
+      margin:0;
+      padding:0;
+      box-sizing:border-box;
+    }
 
-        .card-title {
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            border-left: 3px solid #ff9800;
-            padding-left: 12px;
-        }
+    body{
+      background:#0f0f0f;
+      font-family:Arial,sans-serif;
+      overflow:hidden;
+    }
 
-        /* Camera */
-        .camera-container {
-            position: relative;
-            width: 100%;
-            aspect-ratio: 4/3;
-            background: #000;
-            border-radius: 16px;
-            overflow: hidden;
-            margin-bottom: 12px;
-        }
+    /* Skeleton Effect */
+    .skeleton{
+      position:relative;
+      overflow:hidden;
+      background:#242424;
+      border-radius:12px;
+    }
 
-        #video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
+    .skeleton::before{
+      content:"";
+      position:absolute;
+      top:0;
+      left:-150px;
+      width:150px;
+      height:100%;
+      background:linear-gradient(
+        90deg,
+        transparent,
+        rgba(255,255,255,0.12),
+        transparent
+      );
+      animation:shine 1.2s infinite;
+    }
 
-        .filter-buttons {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            margin-top: 10px;
-        }
+    @keyframes shine{
+      100%{
+        left:100%;
+      }
+    }
 
-        .filter-btn {
-            background: rgba(255,255,255,0.15);
-            border: none;
-            padding: 8px 14px;
-            border-radius: 40px;
-            color: white;
-            font-size: 12px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
+    /* Header */
+    .header{
+      height:56px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:0 14px;
+      border-bottom:1px solid #1f1f1f;
+    }
 
-        .filter-btn.active {
-            background: #ff9800;
-            color: #000;
-            font-weight: bold;
-        }
+    .yt-logo{
+      width:95px;
+      height:22px;
+    }
 
-        /* Buttons */
-        .btn {
-            width: 100%;
-            padding: 14px;
-            border: none;
-            border-radius: 50px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            transition: all 0.2s;
-            margin-top: 10px;
-        }
+    .header-icons{
+      display:flex;
+      gap:12px;
+    }
 
-        .btn-primary {
-            background: linear-gradient(135deg, #ff9800, #f57c00);
-            color: white;
-        }
+    .icon{
+      width:26px;
+      height:26px;
+      border-radius:50%;
+    }
 
-        .btn-secondary {
-            background: rgba(255,255,255,0.2);
-            color: white;
-        }
+    /* Category Chips */
+    .chips{
+      display:flex;
+      gap:10px;
+      padding:12px;
+      overflow:hidden;
+    }
 
-        /* Location & Temple Info */
-        .info-box {
-            background: rgba(0,0,0,0.5);
-            border-radius: 16px;
-            padding: 12px;
-            margin-top: 12px;
-            font-size: 13px;
-        }
+    .chip{
+      min-width:70px;
+      height:32px;
+      border-radius:30px;
+    }
 
-        .temple-item {
-            padding: 10px;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
+    /* Feed */
+    .feed{
+      display:flex;
+      flex-direction:column;
+      gap:24px;
+      padding-bottom:80px;
+    }
 
-        .temple-item:last-child {
-            border-bottom: none;
-        }
+    /* Video Card */
+    .video{
+      width:100%;
+    }
 
-        /* Pitch Meter */
-        .pitch-box {
-            background: #000;
-            border-radius: 60px;
-            padding: 20px;
-            text-align: center;
-            margin-top: 12px;
-        }
+    .thumb{
+      width:100%;
+      height:220px;
+      border-radius:0;
+    }
 
-        .frequency {
-            font-size: 36px;
-            font-weight: bold;
-            font-family: monospace;
-            color: #ff9800;
-        }
+    .video-info{
+      display:flex;
+      gap:12px;
+      padding:12px;
+    }
 
-        .note {
-            font-size: 18px;
-            margin-top: 5px;
-            color: #ccc;
-        }
+    .channel{
+      width:38px;
+      height:38px;
+      border-radius:50%;
+      flex-shrink:0;
+    }
 
-        .mic-status {
-            font-size: 12px;
-            margin-top: 8px;
-            color: #aaa;
-        }
+    .text{
+      flex:1;
+    }
 
-        .error-msg {
-            color: #ff6b6b;
-            font-size: 12px;
-            text-align: center;
-            padding: 10px;
-        }
-    </style>
+    .line1{
+      width:95%;
+      height:15px;
+      margin-bottom:10px;
+    }
+
+    .line2{
+      width:60%;
+      height:13px;
+    }
+
+    /* Bottom Nav */
+    .bottom-nav{
+      position:fixed;
+      bottom:0;
+      left:0;
+      width:100%;
+      height:60px;
+      background:#0f0f0f;
+      border-top:1px solid #1f1f1f;
+      display:flex;
+      justify-content:space-around;
+      align-items:center;
+      padding:0 10px;
+    }
+
+    .nav-icon{
+      width:24px;
+      height:24px;
+      border-radius:8px;
+    }
+
+  </style>
 </head>
 <body>
-<div class="container">
-    <!-- Camera Card -->
-    <div class="card">
-        <div class="card-title">
-            📸 <span>Camera with Filters</span>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="yt-logo skeleton"></div>
+
+    <div class="header-icons">
+      <div class="icon skeleton"></div>
+      <div class="icon skeleton"></div>
+      <div class="icon skeleton"></div>
+    </div>
+  </div>
+
+  <!-- Chips -->
+  <div class="chips">
+    <div class="chip skeleton"></div>
+    <div class="chip skeleton"></div>
+    <div class="chip skeleton"></div>
+    <div class="chip skeleton"></div>
+  </div>
+
+  <!-- Feed -->
+  <div class="feed">
+
+    <!-- Video 1 -->
+    <div class="video">
+      <div class="thumb skeleton"></div>
+
+      <div class="video-info">
+        <div class="channel skeleton"></div>
+
+        <div class="text">
+          <div class="line1 skeleton"></div>
+          <div class="line2 skeleton"></div>
         </div>
-        <div class="camera-container">
-            <video id="video" autoplay playsinline muted></video>
-        </div>
-        <div class="filter-buttons" id="filterButtons">
-            <button class="filter-btn active" data-filter="normal">😐 Normal</button>
-            <button class="filter-btn" data-filter="grayscale">⚫ Mono</button>
-            <button class="filter-btn" data-filter="sepia">🟤 Sepia</button>
-            <button class="filter-btn" data-filter="invert">🎨 Invert</button>
-            <button class="filter-btn" data-filter="blur">✨ Blur</button>
-        </div>
-        <div class="error-msg" id="cameraError" style="display:none;">⚠️ Camera access needed. Please allow permission.</div>
+      </div>
     </div>
 
-    <!-- Location & Temples Card -->
-    <div class="card">
-        <div class="card-title">
-            📍 <span>GPS & Nearby Temples</span>
+    <!-- Video 2 -->
+    <div class="video">
+      <div class="thumb skeleton"></div>
+
+      <div class="video-info">
+        <div class="channel skeleton"></div>
+
+        <div class="text">
+          <div class="line1 skeleton"></div>
+          <div class="line2 skeleton"></div>
         </div>
-        <button class="btn btn-primary" id="getLocationBtn">
-            📡 Get My Location & Find Temples
-        </button>
-        <div class="info-box" id="locationInfo">
-            <span>📍 Tap button to get your location</span>
-        </div>
-        <div class="info-box" id="templeInfo">
-            <span>🛕 Nearby temples will appear here</span>
-        </div>
+      </div>
     </div>
 
-    <!-- Pitch Detector Card -->
-    <div class="card">
-        <div class="card-title">
-            🎤 <span>Pitch Checker (Microphone)</span>
-        </div>
-        <button class="btn btn-secondary" id="micBtn">
-            🎙️ Start Microphone & Check Pitch
-        </button>
-        <div class="pitch-box" id="pitchBox">
-            <div class="frequency" id="frequency">-- Hz</div>
-            <div class="note" id="noteName">Not active</div>
-            <div class="mic-status" id="micStatus">Tap to start</div>
-        </div>
-    </div>
-</div>
+  </div>
 
-<script>
-    // ==================== CAMERA & FILTERS ====================
-    const video = document.getElementById('video');
-    let currentStream = null;
-    let currentFilter = 'normal';
+  <!-- Bottom Navigation -->
+  <div class="bottom-nav">
+    <div class="nav-icon skeleton"></div>
+    <div class="nav-icon skeleton"></div>
+    <div class="nav-icon skeleton"></div>
+    <div class="nav-icon skeleton"></div>
+  </div>
 
-    const filterStyles = {
-        normal: 'none',
-        grayscale: 'grayscale(100%)',
-        sepia: 'sepia(80%)',
-        invert: 'invert(100%)',
-        blur: 'blur(3px)'
-    };
-
-    async function initCamera() {
-        try {
-            if (currentStream) {
-                currentStream.getTracks().forEach(track => track.stop());
-            }
-            
-            const constraints = {
-                video: {
-                    facingMode: "user",
-                    width: { ideal: 640 },
-                    height: { ideal: 480 }
-                }
-            };
-            
-            currentStream = await navigator.mediaDevices.getUserMedia(constraints);
-            video.srcObject = currentStream;
-            await video.play();
-            document.getElementById('cameraError').style.display = 'none';
-            applyFilter(currentFilter);
-        } catch (err) {
-            console.error('Camera error:', err);
-            document.getElementById('cameraError').style.display = 'block';
-            document.getElementById('cameraError').innerText = '⚠️ Camera access denied. Please allow camera permission in app settings.';
-        }
-    }
-
-    function applyFilter(filter) {
-        currentFilter = filter;
-        video.style.filter = filterStyles[filter] || 'none';
-    }
-
-    // Filter buttons
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            const filterName = btn.getAttribute('data-filter');
-            applyFilter(filterName);
-        });
-    });
-
-    // ==================== GPS & TEMPLE FINDER ====================
-    const getLocationBtn = document.getElementById('getLocationBtn');
-    const locationInfo = document.getElementById('locationInfo');
-    const templeInfo = document.getElementById('templeInfo');
-
-    // Function to calculate distance between two coordinates (Haversine formula)
-    function calculateDistance(lat1, lon1, lat2, lon2) {
-        const R = 6371000; // meters
-        const φ1 = lat1 * Math.PI / 180;
-        const φ2 = lat2 * Math.PI / 180;
-        const Δφ = (lat2 - lat1) * Math.PI / 180;
-        const Δλ = (lon2 - lon1) * Math.PI / 180;
-        const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-                  Math.cos(φ1) * Math.cos(φ2) *
-                  Math.sin(Δλ/2) * Math.sin(Δλ/2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        return R * c;
-    }
-
-    // Fetch nearby temples using OpenStreetMap Overpass API
-    async function findNearbyTemples(lat, lon) {
-        templeInfo.innerHTML = '<span>🔍 Searching for temples nearby...</span>';
-        
-        const radius = 3000; // 3km radius
-        const query = `
-            [out:json];
-            (
-                node["amenity"="place_of_worship"]["religion"="hindu"](around:${radius},${lat},${lon});
-                way["amenity"="place_of_worship"]["religion"="hindu"](around:${radius},${lat},${lon});
-                node["amenity"="place_of_worship"]["name"~"temple|mandir",i](around:${radius},${lat},${lon});
-                way["amenity"="place_of_worship"]["name"~"temple|mandir",i](around:${radius},${lat},${lon});
-            );
-            out body;
-        `;
-        
-        const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
-        
-        try {
-            const response = await fetch(url);
-            const data = await response.json();
-            const elements = data.elements || [];
-            
-            const temples = [];
-            const seen = new Set();
-            
-            for (let el of elements) {
-                if (!seen.has(el.id)) {
-                    seen.add(el.id);
-                    let name = el.tags?.name || "Unknown Temple";
-                    let distance = calculateDistance(lat, lon, el.lat, el.lon);
-                    temples.push({
-                        name: name,
-                        distance: Math.round(distance)
-                    });
-                }
-            }
-            
-            // Sort by distance and remove duplicates by name
-            temples.sort((a, b) => a.distance - b.distance);
-            const uniqueTemples = [];
-            const nameSet = new Set();
-            for (let t of temples) {
-                if (!nameSet.has(t.name.toLowerCase())) {
-                    nameSet.add(t.name.toLowerCase());
-                    uniqueTemples.push(t);
-                }
-            }
-            
-            return uniqueTemples.slice(0, 8);
-        } catch (err) {
-            console.error('Overpass error:', err);
-            return [];
-        }
-    }
-
-    function getLocationAndTemples() {
-        if (!navigator.geolocation) {
-            locationInfo.innerHTML = '<span>❌ GPS not supported in this browser</span>';
-            return;
-        }
-        
-        locationInfo.innerHTML = '<span>📍 Getting your location...</span>';
-        templeInfo.innerHTML = '<span>⏳ Waiting for location...</span>';
-        
-        navigator.geolocation.getCurrentPosition(
-            async (position) => {
-                const lat = position.coords.latitude;
-                const lon = position.coords.longitude;
-                const accuracy = position.coords.accuracy;
-                
-                locationInfo.innerHTML = `
-                    <strong>📍 Your Location:</strong><br>
-                    Lat: ${lat.toFixed(5)}<br>
-                    Lon: ${lon.toFixed(5)}<br>
-                    <small>Accuracy: ±${Math.round(accuracy)} meters</small>
-                `;
-                
-                // Find temples
-                const temples = await findNearbyTemples(lat, lon);
-                
-                if (temples.length === 0) {
-                    templeInfo.innerHTML = '<span>🛕 No temples found within 3km. Try a different location.</span>';
-                } else {
-                    let templeHtml = '<strong>🛕 Nearby Temples:</strong><br>';
-                    temples.forEach((temple, idx) => {
-                        templeHtml += `
-                            <div class="temple-item">
-                                <span>🛕</span>
-                                <span><strong>${escapeHtml(temple.name)}</strong><br><small>📍 ${temple.distance} meters away</small></span>
-                            </div>
-                        `;
-                    });
-                    templeInfo.innerHTML = templeHtml;
-                }
-            },
-            (error) => {
-                let errorMsg = '';
-                switch(error.code) {
-                    case error.PERMISSION_DENIED:
-                        errorMsg = '❌ Location permission denied. Please allow GPS in app settings.';
-                        break;
-                    case error.POSITION_UNAVAILABLE:
-                        errorMsg = '❌ Location unavailable. Try again later.';
-                        break;
-                    case error.TIMEOUT:
-                        errorMsg = '❌ Location request timeout.';
-                        break;
-                    default:
-                        errorMsg = '❌ Unknown location error.';
-                }
-                locationInfo.innerHTML = `<span>${errorMsg}</span>`;
-                templeInfo.innerHTML = '<span>⚠️ Cannot find temples without location.</span>';
-            },
-            { enableHighAccuracy: true, timeout: 15000 }
-        );
-    }
-    
-    function escapeHtml(str) {
-        return str.replace(/[&<>]/g, function(m) {
-            if (m === '&') return '&amp;';
-            if (m === '<') return '&lt;';
-            if (m === '>') return '&gt;';
-            return m;
-        });
-    }
-    
-    getLocationBtn.addEventListener('click', getLocationAndTemples);
-    
-    // ==================== PITCH DETECTION ====================
-    const micBtn = document.getElementById('micBtn');
-    const frequencySpan = document.getElementById('frequency');
-    const noteSpan = document.getElementById('noteName');
-    const micStatus = document.getElementById('micStatus');
-    
-    let audioCtx = null;
-    let micStream = null;
-    let source = null;
-    let analyser = null;
-    let animationId = null;
-    let isMicActive = false;
-    
-    // Convert frequency to musical note
-    function getNoteName(freq) {
-        if (freq <= 0 || !isFinite(freq)) return "---";
-        
-        const notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-        const A4 = 440;
-        const C0 = A4 * Math.pow(2, -4.75);
-        const halfSteps = Math.round(12 * Math.log2(freq / C0));
-        const octave = Math.floor(halfSteps / 12);
-        const noteIndex = ((halfSteps % 12) + 12) % 12;
-        
-        return `${notes[noteIndex]}${octave}`;
-    }
-    
-    // Autocorrelation pitch detection
-    function detectPitch(buffer, sampleRate) {
-        let size = buffer.length;
-        let rms = 0;
-        for (let i = 0; i < size; i++) {
-            rms += buffer[i] * buffer[i];
-        }
-        rms = Math.sqrt(rms / size);
-        if (rms < 0.01) return -1;
-        
-        let minSamples = Math.floor(sampleRate / 600);
-        let maxSamples = Math.floor(sampleRate / 70);
-        let bestOffset = -1;
-        let bestCorrelation = 0;
-        
-        for (let offset = minSamples; offset <= maxSamples; offset++) {
-            let correlation = 0;
-            for (let i = 0; i < maxSamples && i + offset < size; i++) {
-                correlation += buffer[i] * buffer[i + offset];
-            }
-            let norm = 0;
-            for (let i = 0; i < maxSamples && i < size; i++) {
-                norm += buffer[i] * buffer[i];
-            }
-            if (norm > 0) {
-                correlation = correlation / norm;
-            }
-            if (correlation > bestCorrelation) {
-                bestCorrelation = correlation;
-                bestOffset = offset;
-            }
-        }
-        
-        if (bestCorrelation > 0.45 && bestOffset > 0) {
-            let pitch = sampleRate / bestOffset;
-            if (pitch >= 70 && pitch <= 800) {
-                return Math.round(pitch);
-            }
-        }
-        return -1;
-    }
-    
-    async function startPitchDetection() {
-        if (isMicActive) {
-            stopPitchDetection();
-            micBtn.innerHTML = '🎙️ Start Microphone & Check Pitch';
-            return;
-        }
-        
-        try {
-            micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            
-            source = audioCtx.createMediaStreamSource(micStream);
-            analyser = audioCtx.createAnalyser();
-            analyser.fftSize = 2048;
-            
-            source.connect(analyser);
-            
-            if (audioCtx.state === 'suspended') {
-                await audioCtx.resume();
-            }
-            
-            isMicActive = true;
-            micBtn.innerHTML = '🔴 Stop Microphone';
-            micStatus.innerHTML = '🎤 Listening... Sing or hum!';
-            noteSpan.innerHTML = 'Detecting...';
-            
-            function updatePitch() {
-                if (!isMicActive || !analyser) return;
-                
-                const bufferLength = analyser.fftSize;
-                const dataArray = new Float32Array(bufferLength);
-                analyser.getFloatTimeDomainData(dataArray);
-                
-                const pitch = detectPitch(dataArray, audioCtx.sampleRate);
-                
-                if (pitch > 0) {
-                    frequencySpan.innerHTML = `${pitch} Hz`;
-                    const note = getNoteName(pitch);
-                    noteSpan.innerHTML = `🎵 ${note}`;
-                    micStatus.innerHTML = '✅ Pitch detected!';
-                } else {
-                    frequencySpan.innerHTML = '-- Hz';
-                    noteSpan.innerHTML = '🔇 No clear pitch';
-                    micStatus.innerHTML = '🎤 Hum or sing into mic...';
-                }
-                
-                animationId = requestAnimationFrame(updatePitch);
-            }
-            
-            if (animationId) cancelAnimationFrame(animationId);
-            updatePitch();
-            
-        } catch (err) {
-            console.error('Microphone error:', err);
-            micStatus.innerHTML = '❌ Microphone access denied';
-            frequencySpan.innerHTML = '-- Hz';
-            noteSpan.innerHTML = 'Permission required';
-            alert('Microphone permission needed for pitch detection. Please allow mic access.');
-        }
-    }
-    
-    function stopPitchDetection() {
-        if (animationId) {
-            cancelAnimationFrame(animationId);
-            animationId = null;
-        }
-        if (source) {
-            try { source.disconnect(); } catch(e) {}
-            source = null;
-        }
-        if (analyser) {
-            try { analyser.disconnect(); } catch(e) {}
-            analyser = null;
-        }
-        if (micStream) {
-            micStream.getTracks().forEach(track => track.stop());
-            micStream = null;
-        }
-        if (audioCtx) {
-            audioCtx.close().catch(e => console.log);
-            audioCtx = null;
-        }
-        isMicActive = false;
-        frequencySpan.innerHTML = '-- Hz';
-        noteSpan.innerHTML = 'Not active';
-        micStatus.innerHTML = 'Tap to start';
-    }
-    
-    micBtn.addEventListener('click', startPitchDetection);
-    
-    // Cleanup on page unload
-    window.addEventListener('beforeunload', () => {
-        if (currentStream) {
-            currentStream.getTracks().forEach(track => track.stop());
-        }
-        if (micStream) {
-            micStream.getTracks().forEach(track => track.stop());
-        }
-        if (audioCtx) {
-            audioCtx.close();
-        }
-    });
-    
-    // Initialize camera when page loads
-    initCamera();
-</script>
 </body>
 </html>

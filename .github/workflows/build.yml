@@ -27,22 +27,21 @@ jobs:
         mkdir -p android/app/src/main/res/values
         mkdir -p android/app/src/main/assets
 
-        # 1. gradle.properties setup
+        # 1. gradle.properties (Memory aur AndroidX optimization)
         cat << 'EOF' > android/gradle.properties
         android.useAndroidX=true
         android.enableJetifier=true
         org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
         EOF
 
-        # 2. AndroidManifest.xml (Fixed package naming issue)
+        # 2. AndroidManifest.xml (Minimalistic standard style)
         cat << 'EOF' > android/app/src/main/AndroidManifest.xml
         <manifest xmlns:android="http://schemas.android.com/apk/res/android">
             <uses-permission android:name="android.permission.INTERNET" />
             <application 
                 android:allowBackup="true" 
                 android:label="My HTML App" 
-                android:hardwareAccelerated="true"
-                android:theme="@style/Theme.AppCompat.Light.NoActionBar">
+                android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
                 <activity android:name="com.compiler.htmltoapk.MainActivity" android:exported="true">
                     <intent-filter>
                         <action android:name="android.intent.action.MAIN" />
@@ -53,37 +52,25 @@ jobs:
         </manifest>
         EOF
 
-        # 3. Activity Layout XML
+        # 3. Activity Layout XML (Direct WebView declaration without container layout)
         cat << 'EOF' > android/app/src/main/res/layout/activity_main.xml
-        <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+        <android.webkit.WebView xmlns:android="http://schemas.android.com/apk/res/android"
+            android:id="@+id/webview" 
             android:layout_width="match_parent" 
-            android:layout_height="match_parent">
-            
-            <android.webkit.WebView 
-                android:id="@+id/webview" 
-                android:layout_width="match_parent" 
-                android:layout_height="match_parent" />
-                
-        </RelativeLayout>
+            android:layout_height="match_parent" />
         EOF
 
-        # 4. Themes XML setup (Double 'Theme.' Bug fixed here)
-        cat << 'EOF' > android/app/src/main/res/values/themes.xml
-        <resources>
-            <style name="Theme.AppCompat.Light.NoActionBar" parent="Theme.AppCompat.Light.NoActionBar" />
-        </resources>
-        EOF
-
-        # 5. MainActivity.java Code
+        # 4. MainActivity.java Code (Super clean structure to prevent lifecycle crash)
         cat << 'EOF' > android/app/src/main/java/com/compiler/htmltoapk/MainActivity.java
         package com.compiler.htmltoapk;
+        
+        import android.app.Activity;
         import android.os.Bundle;
         import android.webkit.WebSettings;
         import android.webkit.WebView;
         import android.webkit.WebViewClient;
-        import androidx.appcompat.app.AppCompatActivity;
 
-        public class MainActivity extends AppCompatActivity {
+        public class MainActivity extends Activity {
             private WebView webView;
 
             @Override
@@ -91,17 +78,144 @@ jobs:
                 super.onCreate(savedInstanceState);
                 setContentView(R.layout.activity_main);
                 
-                webView = findViewById(R.id.webview);
-                if (webView != null) {
-                    WebSettings webSettings = webView.getSettings();
-                    webSettings.setJavaScriptEnabled(true);
-                    webSettings.setDomStorageEnabled(true);
-                    webSettings.setDatabaseEnabled(true);
-                    webSettings.setAllowFileAccess(true);
-                    webSettings.setAllowContentAccess(true);
-                    webView.setWebViewClient(new WebViewClient());
-                    webView.loadUrl("file:///android_asset/index.html");
+                webView = (WebView) findViewById(R.id.webview);
+                
+                WebSettings webSettings = webView.getSettings();
+                webSettings.setJavaScriptEnabled(true);
+                webSettings.setDomStorageEnabled(true);
+                webSettings.setDatabaseEnabled(true);
+                webSettings.setAllowFileAccess(true);
+                
+                webView.setWebViewClient(new WebViewClient());
+                webView.loadUrl("file:///android_asset/index.html");
+            }
+
+            @Override
+            public void onBackPressed() {
+                if (webView != null && webView.canGoBack()) {
+                    webView.goBack();
+                } else {
+                    super.onBackPressed();
                 }
+            }
+        }
+        EOF
+
+        # 5. Root build.gradle Setup
+        cat << 'EOF' > android/build.gradle
+        buildscript {
+            repositories { google(); mavenCentral() }
+            dependencies { classpath 'com.android.tools.build:gradle:8.2.2' }
+        }
+        allprojects {
+            repositories { google(); mavenCentral() }
+        }
+        EOF
+
+        # 6. Settings.gradle Setup
+        cat << 'EOF' > android/settings.gradle
+        include ':app'
+        EOF
+
+        # 7. App-level build.gradle Setup (Removed heavy theme dependencies)
+        cat << 'EOF' > android/app/build.gradle
+        plugins { id 'com.android.application' }
+        android {
+            namespace 'com.compiler.htmltoapk'
+            compileSdk 34
+            defaultConfig {
+                applicationId "com.compiler.htmltoapk"
+                minSdk 24
+                targetSdk 34
+                versionCode 1
+                versionName "1.0"
+            }
+        }
+        dependencies {
+            // Minimal core dependencies to avoid support-library compatibility issues
+            implementation 'androidx.core:core:1.12.0'
+        }
+        EOF
+
+    - name: Inject HTML into App Assets
+      run: |
+        if [ -f "index.html" ]; then
+          cp index.html android/app/src/main/assets/index.html
+        else
+          echo "<h1>Error</h1><p>Bhai repo me index.html nahi mili!</p>" > android/app/src/main/assets/index.html
+        fi
+
+    - name: Build Android Project wrapper
+      run: |
+        cd android
+        gradle wrapper --gradle-version 8.2 --distribution-type bin
+        chmod +x gradlew
+
+    - name: Compile and Generate APK
+      run: cd android && ./gradlew assembleDebug
+
+    - name: Upload Generated APK Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: My-HTML-App-APK
+        path: android/app/build/outputs/apk/debug/app-debug.apk
+        cat << 'EOF' > android/build.gradle
+        buildscript {
+            repositories { google(); mavenCentral() }
+            dependencies { classpath 'com.android.tools.build:gradle:8.2.2' }
+        }
+        allprojects {
+            repositories { google(); mavenCentral() }
+        }
+        EOF
+
+        # 6. Settings.gradle Setup
+        cat << 'EOF' > android/settings.gradle
+        include ':app'
+        EOF
+
+        # 7. App-level build.gradle Setup (Removed heavy theme dependencies)
+        cat << 'EOF' > android/app/build.gradle
+        plugins { id 'com.android.application' }
+        android {
+            namespace 'com.compiler.htmltoapk'
+            compileSdk 34
+            defaultConfig {
+                applicationId "com.compiler.htmltoapk"
+                minSdk 24
+                targetSdk 34
+                versionCode 1
+                versionName "1.0"
+            }
+        }
+        dependencies {
+            // Minimal core dependencies to avoid support-library compatibility issues
+            implementation 'androidx.core:core:1.12.0'
+        }
+        EOF
+
+    - name: Inject HTML into App Assets
+      run: |
+        if [ -f "index.html" ]; then
+          cp index.html android/app/src/main/assets/index.html
+        else
+          echo "<h1>Error</h1><p>Bhai repo me index.html nahi mili!</p>" > android/app/src/main/assets/index.html
+        fi
+
+    - name: Build Android Project wrapper
+      run: |
+        cd android
+        gradle wrapper --gradle-version 8.2 --distribution-type bin
+        chmod +x gradlew
+
+    - name: Compile and Generate APK
+      run: cd android && ./gradlew assembleDebug
+
+    - name: Upload Generated APK Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: My-HTML-App-APK
+        path: android/app/build/outputs/apk/debug/app-debug.apk
             }
 
             @Override

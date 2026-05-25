@@ -28,7 +28,14 @@ jobs:
         mkdir -p android/app/src/main/res/values
         mkdir -p android/app/src/main/assets
 
-        # 1. AndroidManifest.xml (App name aur permissions)
+        # 1. gradle.properties banana (Isse AndroidX ka error thik ho jayega)
+        cat << 'EOF' > android/gradle.properties
+        android.useAndroidX=true
+        android.enableJetifier=true
+        org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+        EOF
+
+        # 2. AndroidManifest.xml (App name aur permissions)
         cat << 'EOF' > android/app/src/main/AndroidManifest.xml
         <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.compiler.htmltoapk">
             <uses-permission android:name="android.permission.INTERNET" />
@@ -43,7 +50,7 @@ jobs:
         </manifest>
         EOF
 
-        # 2. Activity Layout XML (Screen UI setup)
+        # 3. Activity Layout XML (Screen UI setup)
         cat << 'EOF' > android/app/src/main/res/layout/activity_main.xml
         <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
             android:layout_width="match_parent" android:layout_height="match_parent">
@@ -51,14 +58,14 @@ jobs:
         </RelativeLayout>
         EOF
 
-        # 3. Basic Theme setup (App crash hone se rokne ke liye)
+        # 4. Basic Theme setup
         cat << 'EOF' > android/app/src/main/res/values/themes.xml
         <resources>
             <style name="Theme.AppCompat.NoActionBar" parent="Theme.AppCompat.Light.NoActionBar" />
         </resources>
         EOF
 
-        # 4. MainActivity.java Code (WebView configuration)
+        # 5. MainActivity.java Code (WebView configuration)
         cat << 'EOF' > android/app/src/main/java/com/compiler/htmltoapk/MainActivity.java
         package com.compiler.htmltoapk;
         import android.os.Bundle;
@@ -83,7 +90,7 @@ jobs:
         }
         EOF
 
-        # 5. Root build.gradle Setup
+        # 6. Root build.gradle Setup
         cat << 'EOF' > android/build.gradle
         buildscript {
             repositories { google(); mavenCentral() }
@@ -94,12 +101,12 @@ jobs:
         }
         EOF
 
-        # 6. Settings.gradle Setup
+        # 7. Settings.gradle Setup
         cat << 'EOF' > android/settings.gradle
         include ':app'
         EOF
 
-        # 7. App-level build.gradle Setup
+        # 8. App-level build.gradle Setup
         cat << 'EOF' > android/app/build.gradle
         plugins { id 'com.android.application' }
         android {

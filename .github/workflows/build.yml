@@ -159,6 +159,62 @@ jobs:
       with:
         name: My-HTML-App-APK
         path: android/app/build/outputs/apk/debug/app-debug.apk
+        buildscript {
+            repositories { google(); mavenCentral() }
+            dependencies { classpath 'com.android.tools.build:gradle:8.2.2' }
+        }
+        allprojects {
+            repositories { google(); mavenCentral() }
+        }
+        EOF
+
+        # 6. Settings.gradle Setup
+        cat << 'EOF' > android/settings.gradle
+        include ':app'
+        EOF
+
+        # 7. App-level build.gradle Setup (Removed heavy theme dependencies)
+        cat << 'EOF' > android/app/build.gradle
+        plugins { id 'com.android.application' }
+        android {
+            namespace 'com.compiler.htmltoapk'
+            compileSdk 34
+            defaultConfig {
+                applicationId "com.compiler.htmltoapk"
+                minSdk 24
+                targetSdk 34
+                versionCode 1
+                versionName "1.0"
+            }
+        }
+        dependencies {
+            // Minimal core dependencies to avoid support-library compatibility issues
+            implementation 'androidx.core:core:1.12.0'
+        }
+        EOF
+
+    - name: Inject HTML into App Assets
+      run: |
+        if [ -f "index.html" ]; then
+          cp index.html android/app/src/main/assets/index.html
+        else
+          echo "<h1>Error</h1><p>Bhai repo me index.html nahi mili!</p>" > android/app/src/main/assets/index.html
+        fi
+
+    - name: Build Android Project wrapper
+      run: |
+        cd android
+        gradle wrapper --gradle-version 8.2 --distribution-type bin
+        chmod +x gradlew
+
+    - name: Compile and Generate APK
+      run: cd android && ./gradlew assembleDebug
+
+    - name: Upload Generated APK Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: My-HTML-App-APK
+        path: android/app/build/outputs/apk/debug/app-debug.apk
         cat << 'EOF' > android/build.gradle
         buildscript {
             repositories { google(); mavenCentral() }

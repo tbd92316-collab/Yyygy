@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch: # Manual button ke liye permission
+  workflow_dispatch:
 
 jobs:
   build:
@@ -25,6 +25,7 @@ jobs:
         mkdir -p android/app/src/main/java/com/compiler/htmltoapk
         mkdir -p android/app/src/main/res/layout
         mkdir -p android/app/src/main/res/values
+        mkdir -p android/app/src/main/res/mipmap-mdpi
         mkdir -p android/app/src/main/assets
 
         # 1. gradle.properties
@@ -34,13 +35,23 @@ jobs:
         org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
         EOF
 
-        # 2. AndroidManifest.xml
+        # 2. AndroidManifest.xml (Mic, Camera, aur GPS permissions added)
         cat << 'EOF' > android/app/src/main/AndroidManifest.xml
         <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            
             <uses-permission android:name="android.permission.INTERNET" />
+            <uses-permission android:name="android.permission.CAMERA" />
+            <uses-permission android:name="android.permission.RECORD_AUDIO" />
+            <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+            <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+            
+            <uses-feature android:name="android.hardware.camera" android:required="false" />
+            <uses-feature android:name="android.hardware.location.gps" android:required="false" />
+
             <application 
                 android:allowBackup="true" 
                 android:label="My HTML App" 
+                android:icon="@mipmap/ic_launcher"
                 android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
                 <activity android:name="com.compiler.htmltoapk.MainActivity" android:exported="true">
                     <intent-filter>
@@ -60,18 +71,27 @@ jobs:
             android:layout_height="match_parent" />
         EOF
 
-        # 4. MainActivity.java
+        # 4. MainActivity.java (Handles Runtime Permissions and WebChromeClient for Camera/Mic/GPS)
         cat << 'EOF' > android/app/src/main/java/com/compiler/htmltoapk/MainActivity.java
         package com.compiler.htmltoapk;
         
+        import android.Manifest;
         import android.app.Activity;
+        import android.content.pm.PackageManager;
+        import android.os.Build;
         import android.os.Bundle;
+        import android.webkit.PermissionRequest;
+        import android.webkit.WebChromeClient;
+        import android.webkit.GeolocationPermissions;
         import android.webkit.WebSettings;
         import android.webkit.WebView;
         import android.webkit.WebViewClient;
+        import androidx.core.app.ActivityCompat;
+        import androidx.core.content.ContextCompat;
 
         public class MainActivity extends Activity {
             private WebView webView;
+            private static final int PERMISSION_REQUEST_CODE = 123;
 
             @Override
             protected void onCreate(Bundle savedInstanceState) {
@@ -85,10 +105,45 @@ jobs:
                 webSettings.setDomStorageEnabled(true);
                 webSettings.setDatabaseEnabled(true);
                 webSettings.setAllowFileAccess(true);
-                webSettings.setAllowContentAccess(true);
+                webSettings.setGeolocationEnabled(true); // GPS native toggle
                 
                 webView.setWebViewClient(new WebViewClient());
+                
+                // WebChromeClient handles popup inside HTML for camera/mic/gps
+                webView.setWebChromeClient(new WebChromeClient() {
+                    @Override
+                    public void onPermissionRequest(final PermissionRequest request) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                            request.grant(request.getResources());
+                        }
+                    }
+
+                    @Override
+                    public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback) {
+                        callback.invoke(origin, true, false);
+                    }
+                });
+
+                // Request permissions from Android OS on App launch
+                checkAndRequestPermissions();
+                
                 webView.loadUrl("file:///android_asset/index.html");
+            }
+
+            private void checkAndRequestPermissions() {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED ||
+                        ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED ||
+                        ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                        
+                        ActivityCompat.requestPermissions(this,
+                                new String[]{
+                                        Manifest.permission.CAMERA,
+                                        Manifest.permission.RECORD_AUDIO,
+                                        Manifest.permission.ACCESS_FINE_LOCATION
+                                }, PERMISSION_REQUEST_CODE);
+                    }
+                }
             }
 
             @Override
@@ -118,7 +173,7 @@ jobs:
         include ':app'
         EOF
 
-        # 7. App-level build.gradle (ARM64 8a Architecture support lagaya)
+        # 7. App-level build.gradle (Added androidx core for permissions)
         cat << 'EOF' > android/app/build.gradle
         plugins { id 'com.android.application' }
         android {
@@ -130,8 +185,6 @@ jobs:
                 targetSdk 34
                 versionCode 1
                 versionName "1.0"
-                
-                // Yeh tumhare phone ke hardware/processor format ko align karega
                 ndk {
                     abiFilters "arm64-v8a", "armeabi-v7a"
                 }
@@ -141,6 +194,15 @@ jobs:
             implementation 'androidx.core:core:1.12.0'
         }
         EOF
+
+    # Logo injection system (If logo.png is uploaded, make it app icon)
+    - name: Inject Custom App Logo
+      run: |
+        if [ -f "logo.png" ]; then
+          cp logo.png android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+        else
+          echo "No custom logo found, using default blank icon."
+        fi
 
     - name: Inject HTML into App Assets
       run: |
@@ -164,4 +226,3 @@ jobs:
       with:
         name: My-HTML-App-APK
         path: android/app/build/outputs/apk/debug/app-debug.apk
-        

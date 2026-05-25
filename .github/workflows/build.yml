@@ -28,30 +28,34 @@ jobs:
         mkdir -p android/app/src/main/res/mipmap-mdpi
         mkdir -p android/app/src/main/assets
 
-        # 1. gradle.properties setup
+        # 1. gradle.properties
         cat << 'EOF' > android/gradle.properties
         android.useAndroidX=true
         android.enableJetifier=true
         org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
         EOF
 
-        # 2. AndroidManifest.xml
+        # 2. AndroidManifest.xml (Full Camera & Mic hardware features enabled)
         cat << 'EOF' > android/app/src/main/AndroidManifest.xml
         <manifest xmlns:android="http://schemas.android.com/apk/res/android">
             
             <uses-permission android:name="android.permission.INTERNET" />
             <uses-permission android:name="android.permission.CAMERA" />
             <uses-permission android:name="android.permission.RECORD_AUDIO" />
+            <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
             <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
             <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
             
             <uses-feature android:name="android.hardware.camera" android:required="false" />
+            <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+            <uses-feature android:name="android.hardware.microphone" android:required="false" />
             <uses-feature android:name="android.hardware.location.gps" android:required="false" />
 
             <application 
                 android:allowBackup="true" 
                 android:label="My HTML App" 
                 android:icon="@mipmap/ic_launcher"
+                android:hardwareAccelerated="true"
                 android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
                 <activity android:name="com.compiler.htmltoapk.MainActivity" android:exported="true">
                     <intent-filter>
@@ -71,7 +75,7 @@ jobs:
             android:layout_height="match_parent" />
         EOF
 
-        # 4. MainActivity.java (With Permissions and WebChromeClient)
+        # 4. MainActivity.java (Bridges Android OS permissions directly to HTML WebView)
         cat << 'EOF' > android/app/src/main/java/com/compiler/htmltoapk/MainActivity.java
         package com.compiler.htmltoapk;
         
@@ -107,15 +111,23 @@ jobs:
                 webSettings.setAllowFileAccess(true);
                 webSettings.setAllowContentAccess(true);
                 webSettings.setGeolocationEnabled(true);
+                webSettings.setMediaPlaybackRequiresUserGesture(false); // HTML Media Auto-play allow karega
                 
                 webView.setWebViewClient(new WebViewClient());
                 
+                // Super WebChromeClient to force grant all inner HTML media requests
                 webView.setWebChromeClient(new WebChromeClient() {
                     @Override
                     public void onPermissionRequest(final PermissionRequest request) {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                            request.grant(request.getResources());
-                        }
+                        MainActivity.this.runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                                    // HTML file ke mangte hi automatic grant kar dega
+                                    request.grant(request.getResources());
+                                }
+                            }
+                        });
                     }
 
                     @Override
@@ -194,14 +206,12 @@ jobs:
         }
         EOF
 
-    # Logo verification and creation system (Fail-safe mechanism added)
     - name: Inject Custom App Logo
       run: |
         if [ -f "logo.png" ]; then
           cp logo.png android/app/src/main/res/mipmap-mdpi/ic_launcher.png
         else
-          echo "logo.png not found in repository root. Creating a dummy fallback icon to prevent compilation crash..."
-          # Creates a blank fallback icon if user didn't upload logo.png yet
+          echo "logo.png not found. Creating a blank fallback icon..."
           touch android/app/src/main/res/mipmap-mdpi/ic_launcher.png
         fi
 

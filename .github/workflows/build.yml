@@ -20,7 +20,6 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    # Android Project ke saare components auto-generate honge yahan
     - name: Setup Android Project Files
       run: |
         mkdir -p android/app/src/main/java/com/compiler/htmltoapk
@@ -28,18 +27,22 @@ jobs:
         mkdir -p android/app/src/main/res/values
         mkdir -p android/app/src/main/assets
 
-        # 1. gradle.properties banana (Isse AndroidX ka error thik ho jayega)
+        # 1. gradle.properties setup
         cat << 'EOF' > android/gradle.properties
         android.useAndroidX=true
         android.enableJetifier=true
         org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
         EOF
 
-        # 2. AndroidManifest.xml (App name aur permissions)
+        # 2. AndroidManifest.xml (Theme aur hardware acceleration properly added)
         cat << 'EOF' > android/app/src/main/AndroidManifest.xml
         <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.compiler.htmltoapk">
             <uses-permission android:name="android.permission.INTERNET" />
-            <application android:allowBackup="true" android:label="My HTML App" android:theme="@style/Theme.AppCompat.NoActionBar">
+            <application 
+                android:allowBackup="true" 
+                android:label="My HTML App" 
+                android:hardwareAccelerated="true"
+                android:theme="@style/Theme.AppCompat.Light.NoActionBar">
                 <activity android:name=".MainActivity" android:exported="true">
                     <intent-filter>
                         <action android:name="android.intent.action.MAIN" />
@@ -50,22 +53,28 @@ jobs:
         </manifest>
         EOF
 
-        # 3. Activity Layout XML (Screen UI setup)
+        # 3. Activity Layout XML (Fixed layout tag to prevent immediate inflation crash)
         cat << 'EOF' > android/app/src/main/res/layout/activity_main.xml
         <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-            android:layout_width="match_parent" android:layout_height="match_parent">
-            <webkit.WebView android:id="@+id/webview" android:layout_width="match_parent" android:layout_height="match_parent" />
+            android:layout_width="match_parent" 
+            android:layout_height="match_parent">
+            
+            <android.webkit.WebView 
+                android:id="@+id/webview" 
+                android:layout_width="match_parent" 
+                android:layout_height="match_parent" />
+                
         </RelativeLayout>
         EOF
 
-        # 4. Basic Theme setup
+        # 4. Themes XML setup
         cat << 'EOF' > android/app/src/main/res/values/themes.xml
         <resources>
-            <style name="Theme.AppCompat.NoActionBar" parent="Theme.AppCompat.Light.NoActionBar" />
+            <style name="Theme.AppCompat.Light.NoActionBar" parent="Theme.Theme.AppCompat.Light.NoActionBar" />
         </resources>
         EOF
 
-        # 5. MainActivity.java Code (WebView configuration)
+        # 5. MainActivity.java Code (Robust WebView settings)
         cat << 'EOF' > android/app/src/main/java/com/compiler/htmltoapk/MainActivity.java
         package com.compiler.htmltoapk;
         import android.os.Bundle;
@@ -75,17 +84,33 @@ jobs:
         import androidx.appcompat.app.AppCompatActivity;
 
         public class MainActivity extends AppCompatActivity {
+            private WebView webView;
+
             @Override
             protected void onCreate(Bundle savedInstanceState) {
                 super.onCreate(savedInstanceState);
                 setContentView(R.layout.activity_main);
-                WebView webView = findViewById(R.id.webview);
-                WebSettings webSettings = webView.getSettings();
-                webSettings.setJavaScriptEnabled(true);
-                webSettings.setDomStorageEnabled(true);
-                webSettings.setDatabaseEnabled(true);
-                webView.setWebViewClient(new WebViewClient());
-                webView.loadUrl("file:///android_asset/index.html");
+                
+                webView = findViewById(R.id.webview);
+                if (webView != null) {
+                    WebSettings webSettings = webView.getSettings();
+                    webSettings.setJavaScriptEnabled(true);
+                    webSettings.setDomStorageEnabled(true);
+                    webSettings.setDatabaseEnabled(true);
+                    webSettings.setAllowFileAccess(true);
+                    webSettings.setAllowContentAccess(true);
+                    webView.setWebViewClient(new WebViewClient());
+                    webView.loadUrl("file:///android_asset/index.html");
+                }
+            }
+
+            @Override
+            public void onBackPressed() {
+                if (webView != null && webView.canGoBack()) {
+                    webView.goBack();
+                } else {
+                    super.onBackPressed();
+                }
             }
         }
         EOF
@@ -106,7 +131,7 @@ jobs:
         include ':app'
         EOF
 
-        # 8. App-level build.gradle Setup
+        # 8. App-level build.gradle Setup (Added Material library dependency)
         cat << 'EOF' > android/app/build.gradle
         plugins { id 'com.android.application' }
         android {
@@ -122,6 +147,7 @@ jobs:
         }
         dependencies {
             implementation 'androidx.appcompat:appcompat:1.6.1'
+            implementation 'com.google.android.material:material:1.11.0'
         }
         EOF
 

@@ -34,16 +34,16 @@ jobs:
         org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
         EOF
 
-        # 2. AndroidManifest.xml (Theme aur hardware acceleration properly added)
+        # 2. AndroidManifest.xml (Fixed package naming issue)
         cat << 'EOF' > android/app/src/main/AndroidManifest.xml
-        <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.compiler.htmltoapk">
+        <manifest xmlns:android="http://schemas.android.com/apk/res/android">
             <uses-permission android:name="android.permission.INTERNET" />
             <application 
                 android:allowBackup="true" 
                 android:label="My HTML App" 
                 android:hardwareAccelerated="true"
                 android:theme="@style/Theme.AppCompat.Light.NoActionBar">
-                <activity android:name=".MainActivity" android:exported="true">
+                <activity android:name="com.compiler.htmltoapk.MainActivity" android:exported="true">
                     <intent-filter>
                         <action android:name="android.intent.action.MAIN" />
                         <category android:name="android.intent.category.LAUNCHER" />
@@ -53,7 +53,7 @@ jobs:
         </manifest>
         EOF
 
-        # 3. Activity Layout XML (Fixed layout tag to prevent immediate inflation crash)
+        # 3. Activity Layout XML
         cat << 'EOF' > android/app/src/main/res/layout/activity_main.xml
         <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
             android:layout_width="match_parent" 
@@ -67,14 +67,14 @@ jobs:
         </RelativeLayout>
         EOF
 
-        # 4. Themes XML setup
+        # 4. Themes XML setup (Double 'Theme.' Bug fixed here)
         cat << 'EOF' > android/app/src/main/res/values/themes.xml
         <resources>
-            <style name="Theme.AppCompat.Light.NoActionBar" parent="Theme.Theme.AppCompat.Light.NoActionBar" />
+            <style name="Theme.AppCompat.Light.NoActionBar" parent="Theme.AppCompat.Light.NoActionBar" />
         </resources>
         EOF
 
-        # 5. MainActivity.java Code (Robust WebView settings)
+        # 5. MainActivity.java Code
         cat << 'EOF' > android/app/src/main/java/com/compiler/htmltoapk/MainActivity.java
         package com.compiler.htmltoapk;
         import android.os.Bundle;
@@ -131,7 +131,7 @@ jobs:
         include ':app'
         EOF
 
-        # 8. App-level build.gradle Setup (Added Material library dependency)
+        # 8. App-level build.gradle Setup (Fixed namespace mapping)
         cat << 'EOF' > android/app/build.gradle
         plugins { id 'com.android.application' }
         android {

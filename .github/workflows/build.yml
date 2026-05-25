@@ -28,14 +28,14 @@ jobs:
         mkdir -p android/app/src/main/res/mipmap-mdpi
         mkdir -p android/app/src/main/assets
 
-        # 1. gradle.properties
+        # 1. gradle.properties setup
         cat << 'EOF' > android/gradle.properties
         android.useAndroidX=true
         android.enableJetifier=true
         org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
         EOF
 
-        # 2. AndroidManifest.xml (Mic, Camera, aur GPS permissions added)
+        # 2. AndroidManifest.xml
         cat << 'EOF' > android/app/src/main/AndroidManifest.xml
         <manifest xmlns:android="http://schemas.android.com/apk/res/android">
             
@@ -71,7 +71,7 @@ jobs:
             android:layout_height="match_parent" />
         EOF
 
-        # 4. MainActivity.java (Handles Runtime Permissions and WebChromeClient for Camera/Mic/GPS)
+        # 4. MainActivity.java (With Permissions and WebChromeClient)
         cat << 'EOF' > android/app/src/main/java/com/compiler/htmltoapk/MainActivity.java
         package com.compiler.htmltoapk;
         
@@ -105,11 +105,11 @@ jobs:
                 webSettings.setDomStorageEnabled(true);
                 webSettings.setDatabaseEnabled(true);
                 webSettings.setAllowFileAccess(true);
-                webSettings.setGeolocationEnabled(true); // GPS native toggle
+                webSettings.setAllowContentAccess(true);
+                webSettings.setGeolocationEnabled(true);
                 
                 webView.setWebViewClient(new WebViewClient());
                 
-                // WebChromeClient handles popup inside HTML for camera/mic/gps
                 webView.setWebChromeClient(new WebChromeClient() {
                     @Override
                     public void onPermissionRequest(final PermissionRequest request) {
@@ -124,7 +124,6 @@ jobs:
                     }
                 });
 
-                // Request permissions from Android OS on App launch
                 checkAndRequestPermissions();
                 
                 webView.loadUrl("file:///android_asset/index.html");
@@ -173,7 +172,7 @@ jobs:
         include ':app'
         EOF
 
-        # 7. App-level build.gradle (Added androidx core for permissions)
+        # 7. App-level build.gradle Setup
         cat << 'EOF' > android/app/build.gradle
         plugins { id 'com.android.application' }
         android {
@@ -195,13 +194,15 @@ jobs:
         }
         EOF
 
-    # Logo injection system (If logo.png is uploaded, make it app icon)
+    # Logo verification and creation system (Fail-safe mechanism added)
     - name: Inject Custom App Logo
       run: |
         if [ -f "logo.png" ]; then
           cp logo.png android/app/src/main/res/mipmap-mdpi/ic_launcher.png
         else
-          echo "No custom logo found, using default blank icon."
+          echo "logo.png not found in repository root. Creating a dummy fallback icon to prevent compilation crash..."
+          # Creates a blank fallback icon if user didn't upload logo.png yet
+          touch android/app/src/main/res/mipmap-mdpi/ic_launcher.png
         fi
 
     - name: Inject HTML into App Assets

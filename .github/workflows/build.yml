@@ -1,0 +1,142 @@
+name: Automated HTML to APK Compiler
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository Code
+      uses: actions/checkout@v4
+
+    - name: Set up Java JDK 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    # Android Project ke saare components auto-generate honge yahan
+    - name: Setup Android Project Files
+      run: |
+        mkdir -p android/app/src/main/java/com/compiler/htmltoapk
+        mkdir -p android/app/src/main/res/layout
+        mkdir -p android/app/src/main/res/values
+        mkdir -p android/app/src/main/assets
+
+        # 1. AndroidManifest.xml (App name aur permissions)
+        cat << 'EOF' > android/app/src/main/AndroidManifest.xml
+        <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.compiler.htmltoapk">
+            <uses-permission android:name="android.permission.INTERNET" />
+            <application android:allowBackup="true" android:label="My HTML App" android:theme="@style/Theme.AppCompat.NoActionBar">
+                <activity android:name=".MainActivity" android:exported="true">
+                    <intent-filter>
+                        <action android:name="android.intent.action.MAIN" />
+                        <category android:name="android.intent.category.LAUNCHER" />
+                    </intent-filter>
+                </activity>
+            </application>
+        </manifest>
+        EOF
+
+        # 2. Activity Layout XML (Screen UI setup)
+        cat << 'EOF' > android/app/src/main/res/layout/activity_main.xml
+        <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+            android:layout_width="match_parent" android:layout_height="match_parent">
+            <webkit.WebView android:id="@+id/webview" android:layout_width="match_parent" android:layout_height="match_parent" />
+        </RelativeLayout>
+        EOF
+
+        # 3. Basic Theme setup (App crash hone se rokne ke liye)
+        cat << 'EOF' > android/app/src/main/res/values/themes.xml
+        <resources>
+            <style name="Theme.AppCompat.NoActionBar" parent="Theme.AppCompat.Light.NoActionBar" />
+        </resources>
+        EOF
+
+        # 4. MainActivity.java Code (WebView configuration)
+        cat << 'EOF' > android/app/src/main/java/com/compiler/htmltoapk/MainActivity.java
+        package com.compiler.htmltoapk;
+        import android.os.Bundle;
+        import android.webkit.WebSettings;
+        import android.webkit.WebView;
+        import android.webkit.WebViewClient;
+        import androidx.appcompat.app.AppCompatActivity;
+
+        public class MainActivity extends AppCompatActivity {
+            @Override
+            protected void onCreate(Bundle savedInstanceState) {
+                super.onCreate(savedInstanceState);
+                setContentView(R.layout.activity_main);
+                WebView webView = findViewById(R.id.webview);
+                WebSettings webSettings = webView.getSettings();
+                webSettings.setJavaScriptEnabled(true);
+                webSettings.setDomStorageEnabled(true);
+                webSettings.setDatabaseEnabled(true);
+                webView.setWebViewClient(new WebViewClient());
+                webView.loadUrl("file:///android_asset/index.html");
+            }
+        }
+        EOF
+
+        # 5. Root build.gradle Setup
+        cat << 'EOF' > android/build.gradle
+        buildscript {
+            repositories { google(); mavenCentral() }
+            dependencies { classpath 'com.android.tools.build:gradle:8.2.2' }
+        }
+        allprojects {
+            repositories { google(); mavenCentral() }
+        }
+        EOF
+
+        # 6. Settings.gradle Setup
+        cat << 'EOF' > android/settings.gradle
+        include ':app'
+        EOF
+
+        # 7. App-level build.gradle Setup
+        cat << 'EOF' > android/app/build.gradle
+        plugins { id 'com.android.application' }
+        android {
+            namespace 'com.compiler.htmltoapk'
+            compileSdk 34
+            defaultConfig {
+                applicationId "com.compiler.htmltoapk"
+                minSdk 24
+                targetSdk 34
+                versionCode 1
+                versionName "1.0"
+            }
+        }
+        dependencies {
+            implementation 'androidx.appcompat:appcompat:1.6.1'
+        }
+        EOF
+
+    - name: Inject HTML into App Assets
+      run: |
+        if [ -f "index.html" ]; then
+          cp index.html android/app/src/main/assets/index.html
+        else
+          echo "<h1>Error</h1><p>Bhai repo me index.html nahi mili!</p>" > android/app/src/main/assets/index.html
+        fi
+
+    - name: Build Android Project wrapper
+      run: |
+        cd android
+        gradle wrapper --gradle-version 8.2 --distribution-type bin
+        chmod +x gradlew
+
+    - name: Compile and Generate APK
+      run: cd android && ./gradlew assembleDebug
+
+    - name: Upload Generated APK Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: My-HTML-App-APK
+        path: android/app/build/outputs/apk/debug/app-debug.apk

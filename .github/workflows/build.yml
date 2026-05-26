@@ -14,7 +14,6 @@ jobs:
     - name: Checkout Repository Code
       uses: actions/checkout@v4
 
-    # Java Setup v4 explicitly pinned with stable architecture
     - name: Set up Java JDK 17
       uses: actions/setup-java@v4
       with:
@@ -36,28 +35,20 @@ jobs:
         org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
         EOF
 
-        # 2. AndroidManifest.xml (Full hardware & notification system declared)
+        # 2. AndroidManifest.xml
         cat << 'EOF' > android/app/src/main/AndroidManifest.xml
         <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-            
             <uses-permission android:name="android.permission.INTERNET" />
-            <uses-permission android:name="android.permission.CAMERA" />
-            <uses-permission android:name="android.permission.RECORD_AUDIO" />
-            <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
-            <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-            <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+            <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
             <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+            <uses-permission android:name="android.permission.WAKE_LOCK" />
             
-            <uses-feature android:name="android.hardware.camera" android:required="false" />
-            <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
-            <uses-feature android:name="android.hardware.microphone" android:required="false" />
-            <uses-feature android:name="android.hardware.location.gps" android:required="false" />
-
             <application 
                 android:allowBackup="true" 
-                android:label="My HTML App" 
+                android:label="Fast Chat Pro" 
                 android:icon="@mipmap/ic_launcher"
                 android:hardwareAccelerated="true"
+                android:usesCleartextTraffic="true"
                 android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
                 <activity android:name="com.compiler.htmltoapk.MainActivity" android:exported="true">
                     <intent-filter>
@@ -77,7 +68,7 @@ jobs:
             android:layout_height="match_parent" />
         EOF
 
-        # 4. MainActivity.java (Bridges Camera/Mic Web resources to HTML context)
+        # 4. MainActivity.java (Bridges Firebase JSON background loops to Android Status Bar)
         cat << 'EOF' > android/app/src/main/java/com/compiler/htmltoapk/MainActivity.java
         package com.compiler.htmltoapk;
         
@@ -86,24 +77,18 @@ jobs:
         import android.app.NotificationChannel;
         import android.app.NotificationManager;
         import android.content.Context;
-        import android.content.pm.PackageManager;
         import android.os.Build;
         import android.os.Bundle;
-        import android.webkit.PermissionRequest;
-        import android.webkit.WebChromeClient;
-        import android.webkit.GeolocationPermissions;
         import android.webkit.JavascriptInterface;
         import android.webkit.WebSettings;
         import android.webkit.WebView;
         import android.webkit.WebViewClient;
         import androidx.core.app.ActivityCompat;
         import androidx.core.app.NotificationCompat;
-        import androidx.core.content.ContextCompat;
 
         public class MainActivity extends Activity {
             private WebView webView;
-            private static final int PERMISSION_REQUEST_CODE = 123;
-            private static final String CHANNEL_ID = "app_notifications";
+            private static final String CHANNEL_ID = "fast_chat_secure";
 
             @Override
             protected void onCreate(Bundle savedInstanceState) {
@@ -119,28 +104,14 @@ jobs:
                 webSettings.setDatabaseEnabled(true);
                 webSettings.setAllowFileAccess(true);
                 webSettings.setAllowContentAccess(true);
-                webSettings.setGeolocationEnabled(true);
-                webSettings.setMediaPlaybackRequiresUserGesture(false);
                 
                 webView.setWebViewClient(new WebViewClient());
                 webView.addJavascriptInterface(new WebAppInterface(this), "AndroidBridge");
                 
-                webView.setWebChromeClient(new WebChromeClient() {
-                    @Override
-                    public void onPermissionRequest(final PermissionRequest request) {
-                        // Directly force check and grant Web Media resources
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                            request.grant(request.getResources());
-                        }
-                    }
-
-                    @Override
-                    public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback) {
-                        callback.invoke(origin, true, false);
-                    }
-                });
-
-                checkAndRequestPermissions();
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS}, 101);
+                }
+                
                 webView.loadUrl("file:///android_asset/index.html");
             }
 
@@ -149,47 +120,27 @@ jobs:
                 WebAppInterface(Context c) { mContext = c; }
 
                 @JavascriptInterface
-                public void showNotification(String title, String message) {
+                public void pushBackgroundAlert(String senderName, String textContent) {
                     NotificationCompat.Builder builder = new NotificationCompat.Builder(mContext, CHANNEL_ID)
                             .setSmallIcon(android.R.drawable.stat_notify_chat)
-                            .setContentTitle(title)
-                            .setContentText(message)
-                            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                            .setContentTitle(senderName)
+                            .setContentText(textContent)
+                            .setPriority(NotificationCompat.PRIORITY_HIGH)
+                            .setDefaults(NotificationCompat.DEFAULT_ALL)
                             .setAutoCancel(true);
 
-                    NotificationManager notificationManager = (NotificationManager) mContext.getSystemService(Context.NOTIFICATION_SERVICE);
-                    if (notificationManager != null) {
-                        notificationManager.notify(1, builder.build());
+                    NotificationManager manager = (NotificationManager) mContext.getSystemService(Context.NOTIFICATION_SERVICE);
+                    if (manager != null) {
+                        manager.notify((int) System.currentTimeMillis(), builder.build());
                     }
                 }
             }
 
             private void createNotificationChannel() {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "App Notifications", NotificationManager.IMPORTANCE_DEFAULT);
-                    NotificationManager notificationManager = getSystemService(NotificationManager.class);
-                    if (notificationManager != null) {
-                        notificationManager.createNotificationChannel(channel);
-                    }
-                }
-            }
-
-            private void checkAndRequestPermissions() {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    ActivityCompat.requestPermissions(this, new String[]{
-                            Manifest.permission.POST_NOTIFICATIONS,
-                            Manifest.permission.CAMERA,
-                            Manifest.permission.RECORD_AUDIO,
-                            Manifest.permission.ACCESS_FINE_LOCATION,
-                            Manifest.permission.ACCESS_COARSE_LOCATION
-                    }, PERMISSION_REQUEST_CODE);
-                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    ActivityCompat.requestPermissions(this, new String[]{
-                            Manifest.permission.CAMERA,
-                            Manifest.permission.RECORD_AUDIO,
-                            Manifest.permission.ACCESS_FINE_LOCATION,
-                            Manifest.permission.ACCESS_COARSE_LOCATION
-                    }, PERMISSION_REQUEST_CODE);
+                    NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Chat Secure Alerts", NotificationManager.IMPORTANCE_HIGH);
+                    NotificationManager manager = getSystemService(NotificationManager.class);
+                    if (manager != null) manager.createNotificationChannel(channel);
                 }
             }
 
@@ -210,9 +161,7 @@ jobs:
             repositories { google(); mavenCentral() }
             dependencies { classpath 'com.android.tools.build:gradle:8.2.2' }
         }
-        allprojects {
-            repositories { google(); mavenCentral() }
-        }
+        allprojects { repositories { google(); mavenCentral() } }
         EOF
 
         # 6. Settings.gradle Setup
@@ -235,9 +184,7 @@ jobs:
                 ndk { abiFilters "arm64-v8a", "armeabi-v7a" }
             }
         }
-        dependencies {
-            implementation 'androidx.core:core:1.12.0'
-        }
+        dependencies { implementation 'androidx.core:core:1.12.0' }
         EOF
 
     - name: Inject Custom App Logo
@@ -268,6 +215,6 @@ jobs:
     - name: Upload Generated APK Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: My-HTML-App-APK
+        name: Fast-Chat-Pro-APK
         path: android/app/build/outputs/apk/debug/app-debug.apk
         

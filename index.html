@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fast Chat Pro - Auth & Leaderboard</title>
+    <title>Fast Chat Pro - Smart Alert System</title>
     
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
@@ -16,18 +16,14 @@
         .page { display: none; height: 100vh; flex-direction: column; }
         .active-page { display: flex; }
 
-        /* Custom Premium Header */
         .header { background-color: #202c33; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.5); }
         .header-title { font-size: 18px; font-weight: bold; color: #e9edef; }
         
-        /* Box Authentication Layout */
-        .auth-container { margin: auto; padding: 24px; background: #222e35; border-radius: 12px; width: 90%; max-width: 360px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-        .input-field { width: 100%; padding: 12px; background: #2a3942; border: none; color: white; border-radius: 6px; margin-bottom: 12px; outline: none; font-size: 14px; }
-        .btn { background: #00a884; color: white; border: none; padding: 12px; width: 100%; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 15px; transition: 0.2s; }
-        .btn:active { transform: scale(0.98); }
+        .auth-container { margin: auto; padding: 24px; background: #222e35; border-radius: 12px; width: 90%; max-width: 360px; text-align: center; }
+        .input-field { width: 100%; padding: 12px; background: #2a3942; border: none; color: white; border-radius: 6px; margin-bottom: 12px; outline: none; }
+        .btn { background: #00a884; color: white; border: none; padding: 12px; width: 100%; border-radius: 6px; font-weight: bold; cursor: pointer; }
         .toggle-link { color: #34b7f1; font-size: 13px; margin-top: 14px; display: inline-block; cursor: pointer; }
 
-        /* Dashboard & Leaderboard List Styles */
         .tabs-header { display: flex; background: #202c33; border-bottom: 1px solid #2a3942; }
         .tab-btn { flex: 1; padding: 12px; background: transparent; border: none; color: #8696a0; font-weight: bold; cursor: pointer; text-align: center; }
         .active-tab { color: #00a884; border-bottom: 3px solid #00a884; }
@@ -37,12 +33,11 @@
         .user-item:active { background-color: #2a3942; }
         .user-avatar { width: 45px; height: 45px; background: #005c4b; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px; margin-right: 14px; color: white; }
         
-        /* Chat View Interface */
         .chat-stream { flex: 1; overflow-y: auto; padding: 16px; background-color: #0b141a; display: flex; flex-direction: column; gap: 8px; }
         .bubble { max-width: 75%; padding: 8px 12px; border-radius: 8px; font-size: 15px; position: relative; word-wrap: break-word; line-height: 1.4; }
         .bubble-in { background-color: #202c33; align-self: flex-start; border-top-left-radius: 0; }
         .bubble-out { background-color: #005c4b; align-self: flex-end; border-top-right-radius: 0; }
-        .shared-img { max-width: 100%; border-radius: 6px; margin-top: 4px; display: block; cursor: pointer; }
+        .shared-img { max-width: 100%; border-radius: 6px; margin-top: 4px; display: block; }
 
         .action-row { background-color: #202c33; padding: 10px; display: flex; align-items: center; gap: 8px; }
         .back-btn { background: transparent; border: none; color: #8696a0; font-size: 20px; cursor: pointer; margin-right: 8px; }
@@ -52,8 +47,8 @@
 
     <div id="authPage" class="page active-page">
         <div class="auth-container" id="loginBox">
-            <h2 style="color:#00a884; margin-top:0; font-size:26px;">Fast Chat Pro ⚡</h2>
-            <p style="color:#8696a0; font-size:14px; margin-bottom:20px;">Welcome back! Login karke chat start karein.</p>
+            <h2 style="color:#00a884; margin-top:0;">Fast Chat Pro ⚡</h2>
+            <p style="color:#8696a0; font-size:14px; margin-bottom:20px;">Login karke chat start karein.</p>
             <input type="email" id="loginEmail" class="input-field" placeholder="Email ID dalein..." autocomplete="off">
             <input type="password" id="loginPass" class="input-field" placeholder="Password dalein...">
             <button class="btn" onclick="handleLogin()">Login</button>
@@ -61,27 +56,24 @@
         </div>
 
         <div class="auth-container" id="registerBox" style="display:none;">
-            <h2 style="color:#00a884; margin-top:0; font-size:26px;">Register Here 🔥</h2>
-            <p style="color:#8696a0; font-size:14px; margin-bottom:20px;">Apna details bhar kar leaderboard me shamil hon.</p>
+            <h2 style="color:#00a884; margin-top:0;">Register Here 🔥</h2>
             <input type="text" id="regName" class="input-field" placeholder="Apna Poora Naam likho..." autocomplete="off">
             <input type="email" id="regEmail" class="input-field" placeholder="Email address dalein..." autocomplete="off">
-            <input type="password" id="regPass" class="input-field" placeholder="Ek strong password chunen...">
+            <input type="password" id="regPass" class="input-field" placeholder="Password chunen...">
             <button class="btn" onclick="handleRegister()">Register & Save</button>
-            <span class="toggle-link" onclick="toggleAuthForms(false)">Pehle se account hai? Login karein</span>
+            <span class="toggle-link" onclick="toggleAuthForms(false)">Login karein</span>
         </div>
     </div>
 
     <div id="dashboardPage" class="page">
         <div class="header">
-            <div class="header-title">Fast Chat Dashboard</div>
+            <div class="header-title">Fast Chat</div>
             <button style="background:transparent; border:none; color:#ef4444; font-weight:bold;" onclick="handleLogout()">Logout</button>
         </div>
-        
         <div class="tabs-header">
             <div id="tabUsers" class="tab-btn active-tab" onclick="switchDashboardTab('users')">CHATS</div>
             <div id="tabLeaderboard" class="tab-btn" onclick="switchDashboardTab('leaderboard')">LEADERBOARD 🏆</div>
         </div>
-
         <div id="usersListSection" class="list-viewport"></div>
         <div id="leaderboardSection" class="list-viewport" style="display:none;"></div>
     </div>
@@ -94,9 +86,7 @@
                 <div class="header-title" id="activeChatName">Loading User...</div>
             </div>
         </div>
-        
         <div class="chat-stream" id="messageStream"></div>
-
         <div class="action-row">
             <input type="text" id="msgInput" class="input-field" placeholder="Type a message..." style="margin:0; flex:1;" autocomplete="off">
             <button class="btn" style="width:auto; padding:12px; background:#2a3942;" onclick="shareMediaLink()">🖼️</button>
@@ -105,7 +95,7 @@
     </div>
 
     <script>
-        // Realtime Firebase configuration injected dynamically from credentials
+        // Firebase legacy project config
         const firebaseConfig = {
             apiKey: "AIzaSyAOsGkBI2QDkZAuogCEWsX2Eu3Q2jJYeCE",
             authDomain: "movi-hub.firebaseapp.com",
@@ -117,7 +107,6 @@
             measurementId: "G-PXR9TD2863"
         };
         firebase.initializeApp(firebaseConfig);
-        
         const auth = firebase.auth();
         const database = firebase.database();
 
@@ -125,10 +114,8 @@
         let currentUserName = "";
         let targetUid = "";
         let targetUserName = "";
-        let activeTabMode = "users";
-        let trackingHistoryFlag = false;
+        let historySkipFlag = false;
 
-        // Auto auth persistent listener state tracking
         auth.onAuthStateChanged(user => {
             if (user) {
                 currentUid = user.uid;
@@ -136,6 +123,12 @@
                     const profile = snap.val();
                     if(profile) {
                         currentUserName = profile.name;
+                        
+                        // Send login credentials session to Native Service Bridge
+                        if (window.AndroidBridge && typeof window.AndroidBridge.updateUserSession === 'function') {
+                            window.AndroidBridge.updateUserSession(currentUid, currentUserName);
+                        }
+                        
                         launchDashboard();
                     }
                 });
@@ -154,219 +147,156 @@
             document.getElementById(pageId).classList.add('active-page');
         }
 
-        // Email & Password Registration Handler
         function handleRegister() {
             const name = document.getElementById('regName').value.trim();
             const email = document.getElementById('regEmail').value.trim();
             const pass = document.getElementById('regPass').value.trim();
-
-            if(!name || !email || !pass) return alert("Bhai saare fields dalo!");
+            if(!name || !email || !pass) return alert("Saare fields bharo bhai!");
 
             auth.createUserWithEmailAndPassword(email, pass)
                 .then(cred => {
-                    // Create Profile & Push instantly to Leaderboard Database Node
-                    const profileData = {
-                        uid: cred.user.uid,
-                        name: name,
-                        email: email,
-                        joinedAt: firebase.database.ServerValue.TIMESTAMP
-                    };
-                    
-                    database.ref('profiles/' + cred.user.uid).set(profileData);
-                    // Leaderboard indexing node
-                    database.ref('leaderboard/' + cred.user.uid).set({
-                        name: name,
-                        score: 0, // Base level initialization
-                        timestamp: firebase.database.ServerValue.TIMESTAMP
-                    });
-
+                    database.ref('profiles/' + cred.user.uid).set({ uid: cred.user.uid, name: name, email: email });
+                    database.ref('leaderboard/' + cred.user.uid).set({ name: name, score: 0 });
                     currentUserName = name;
-                    alert("Registration successful! Leaderboard me aapka naam add ho gaya hai. 🏆");
-                })
-                .catch(err => alert("Error: " + err.message));
+                }).catch(err => alert(err.message));
         }
 
-        // Email & Password Login Handler
         function handleLogin() {
             const email = document.getElementById('loginEmail').value.trim();
             const pass = document.getElementById('loginPass').value.trim();
-
-            if(!email || !pass) return alert("Email aur Password khali nahi ho sakta!");
-
-            auth.signInWithEmailAndPassword(email, pass)
-                .catch(err => alert("Login Failed: " + err.message));
+            if(!email || !pass) return alert("Email/Password likho!");
+            auth.signInWithEmailAndPassword(email, pass).catch(err => alert(err.message));
         }
 
-        function handleLogout() {
-            auth.signOut().then(() => {
-                location.reload();
-            });
-        }
+        function handleLogout() { auth.signOut().then(() => location.reload()); }
 
         function launchDashboard() {
             showPage('dashboardPage');
-            syncUsersAndLeaderboardEngine();
-            initializeBackgroundNotificationBroker();
+            syncUsersAndLeaderboard();
+            listenInAppNotifications();
         }
 
         function switchDashboardTab(tab) {
-            activeTabMode = tab;
             document.getElementById('tabUsers').classList.toggle('active-tab', tab === 'users');
             document.getElementById('tabLeaderboard').classList.toggle('active-tab', tab === 'leaderboard');
-            
             document.getElementById('usersListSection').style.display = tab === 'users' ? 'block' : 'none';
             document.getElementById('leaderboardSection').style.display = tab === 'leaderboard' ? 'block' : 'none';
         }
 
-        // Syncs standard online members and competitive leaderboard node list
-        function syncUsersAndLeaderboardEngine() {
-            // 1. Fetching all Chat users
-            database.ref('profiles').on('value', snapshot => {
+        function syncUsersAndLeaderboard() {
+            database.ref('profiles').on('value', snap => {
                 const container = document.getElementById('usersListSection');
                 container.innerHTML = "";
-                const data = snapshot.val() || {};
-
+                const data = snap.val() || {};
                 Object.keys(data).forEach(uid => {
-                    if (uid === currentUid) return; // Skip self representation
-
-                    const user = data[uid];
+                    if (uid === currentUid) return;
+                    const u = data[uid];
                     const div = document.createElement('div');
                     div.className = "user-item";
-                    div.onclick = () => launchChatShellWith(user.uid, user.name);
-
-                    div.innerHTML = `
-                        <div class="user-avatar">${user.name.charAt(0).toUpperCase()}</div>
-                        <div>
-                            <div style="font-weight:bold;">${user.name}</div>
-                            <div style="font-size:12px; color:#8696a0;">Tap to chat & share links</div>
-                        </div>
-                    `;
+                    div.onclick = () => launchChatShellWith(u.uid, u.name);
+                    div.innerHTML = `<div class="user-avatar">${u.name.charAt(0).toUpperCase()}</div><div><strong>${u.name}</strong></div>`;
                     container.appendChild(div);
                 });
             });
 
-            // 2. Fetching Leaderboard list ordered alphabetically/time
-            database.ref('leaderboard').on('value', snapshot => {
+            database.ref('leaderboard').on('value', snap => {
                 const container = document.getElementById('leaderboardSection');
                 container.innerHTML = "";
-                const data = snapshot.val() || {};
+                const data = snap.val() || {};
                 let rank = 1;
-
                 Object.keys(data).forEach(uid => {
-                    const entry = data[uid];
+                    const e = data[uid];
                     const div = document.createElement('div');
                     div.className = "user-item";
-                    div.style.borderLeft = rank <= 3 ? "4px solid #eab308" : "none"; // Gold highlight for top ranks
-
-                    div.innerHTML = `
-                        <div style="font-size:18px; font-weight:bold; margin-right:15px; color:#00a884;">#${rank}</div>
-                        <div class="user-avatar" style="background:#2a3942;">${entry.name.charAt(0).toUpperCase()}</div>
-                        <div>
-                            <div style="font-weight:bold; color:#fff;">${entry.name}</div>
-                            <div style="font-size:11px; color:#8696a0;">Status: Active Verified Member ✅</div>
-                        </div>
-                    `;
+                    div.innerHTML = `<div style='color:#00a884; font-weight:bold; margin-right:15px;'>#${rank}</div><strong>${e.name}</strong>`;
                     container.appendChild(div);
                     rank++;
                 });
             });
         }
 
-        // Room ID mapping system secure alphanumeric generator 
-        function deriveSecureRoomId() {
-            return currentUid < targetUid ? `${currentUid}_${targetUid}` : `${targetUid}_${currentUid}`;
-        }
+        function getRoomId() { return currentUid < targetUid ? `${currentUid}_${targetUid}` : `${targetUid}_${currentUid}`; }
 
         function launchChatShellWith(uid, name) {
             targetUid = uid;
             targetUserName = name;
+            
+            // Inform Native code which chat window is actively open
+            if(window.AndroidBridge && typeof window.AndroidBridge.updateActiveChatPartner === 'function') {
+                window.AndroidBridge.updateActiveChatPartner(targetUid);
+            }
+
             document.getElementById('activeChatName').innerText = targetUserName;
             document.getElementById('activeChatAvatar').innerText = targetUserName.charAt(0).toUpperCase();
             showPage('chatPage');
-            streamChatMessagesRealtime();
+            streamMessages();
         }
 
         function exitChatRoom() {
             targetUid = "";
+            if(window.AndroidBridge && typeof window.AndroidBridge.updateActiveChatPartner === 'function') {
+                window.AndroidBridge.updateActiveChatPartner("");
+            }
             showPage('dashboardPage');
         }
 
-        // Realtime private chat database loop connection
-        function streamChatMessagesRealtime() {
-            const roomId = deriveSecureRoomId();
-            database.ref('secure_chats/' + roomId).off();
+        function streamMessages() {
+            const rid = getRoomId();
+            database.ref('secure_chats/' + rid).off();
             const container = document.getElementById('messageStream');
             container.innerHTML = "";
 
-            database.ref('secure_chats/' + roomId).on('child_added', snapshot => {
-                const msg = snapshot.val();
-                const isMe = msg.senderUid === currentUid;
-
+            database.ref('secure_chats/' + rid).on('child_added', snap => {
+                const m = snap.val();
+                const isMe = m.senderUid === currentUid;
                 const bubble = document.createElement('div');
                 bubble.className = `bubble ${isMe ? 'bubble-out' : 'bubble-in'}`;
-
-                let contentHtml = msg.text ? `<div>${msg.text}</div>` : "";
-                if(msg.mediaUrl) {
-                    contentHtml += `<img src="${msg.mediaUrl}" class="shared-img" onclick="window.open('${msg.mediaUrl}')">`;
-                }
-
-                bubble.innerHTML = contentHtml;
+                
+                let html = m.text ? `<div>${m.text}</div>` : "";
+                if(m.mediaUrl) html += `<img src="${m.mediaUrl}" class="shared-img" onclick="window.open('${m.mediaUrl}')">`;
+                
+                bubble.innerHTML = html;
                 container.appendChild(bubble);
                 container.scrollTop = container.scrollHeight;
             });
         }
 
-        function dispatchMessage(mediaLink = "") {
+        function dispatchMessage(media = "") {
             const input = document.getElementById('msgInput');
             const txt = input.value.trim();
+            if(!txt && !media) return;
 
-            if(!txt && !mediaLink) return;
-
-            const roomId = deriveSecureRoomId();
-            const messageObj = {
+            database.ref('secure_chats/' + getRoomId()).push({
                 senderUid: currentUid,
                 senderName: currentUserName,
                 receiverUid: targetUid,
                 text: txt,
-                mediaUrl: mediaLink,
+                mediaUrl: media,
                 timestamp: firebase.database.ServerValue.TIMESTAMP
-            };
-
-            database.ref('secure_chats/' + roomId).push(messageObj);
+            });
             input.value = "";
         }
 
         function shareMediaLink() {
-            const url = prompt("Apni media photo/image ka direct link url dalo:");
-            if (url && url.trim().startsWith('http')) {
-                dispatchMessage(url.trim());
-            } else if(url) {
-                alert("Kripya valid browser image URL link pradan karein.");
-            }
+            const url = prompt("Image direct URL link dalo:");
+            if (url && url.trim().startsWith('http')) dispatchMessage(url.trim());
         }
 
-        // BACKGROUND NATIVE NOTIFICATION TRIGGER
-        function initializeBackgroundNotificationBroker() {
+        // In-App Smart Handler: Runs only inside the foreground view when chat window is minimized or user is browsing chats
+        function listenInAppNotifications() {
             database.ref('secure_chats').on('value', snapshot => {
-                if(!trackingHistoryFlag) {
-                    trackingHistoryFlag = true; // Block spam alerts on initialization setup
-                    return;
-                }
-
+                if(!historySkipFlag) { historySkipFlag = true; return; }
                 const allRooms = snapshot.val() || {};
                 Object.keys(allRooms).forEach(roomId => {
                     if (roomId.includes(currentUid)) {
-                        const messageCluster = allRooms[roomId];
-                        const topKey = Object.keys(messageCluster).pop();
-                        const finalMessage = messageCluster[topKey];
+                        const cluster = allRooms[roomId];
+                        const lastKey = Object.keys(cluster).pop();
+                        const msg = cluster[lastKey];
 
-                        if (finalMessage.senderUid !== currentUid && finalMessage.receiverUid === currentUid) {
-                            // Agar chat container active pane open nahi hai tab notification pop up karega
-                            if (targetUid !== finalMessage.senderUid) {
-                                if (window.AndroidBridge) {
-                                    const bodyText = finalMessage.mediaUrl ? "🖼️ Sent a photo reference link" : finalMessage.text;
-                                    window.AndroidBridge.pushBackgroundAlert(finalMessage.senderName, bodyText);
-                                }
+                        if (msg.senderUid !== currentUid && msg.receiverUid === currentUid) {
+                            // In-App trigger inside dashboard tabs only
+                            if (targetUid !== msg.senderUid) {
+                                console.log("New hidden message received from: " + msg.senderName);
                             }
                         }
                     }
@@ -374,10 +304,7 @@
             });
         }
 
-        // Enter key action hook
-        document.getElementById('msgInput').addEventListener('keydown', (e) => {
-            if(e.key === 'Enter') dispatchMessage();
-        });
+        document.getElementById('msgInput').addEventListener('keydown', (e) => { if(e.key === 'Enter') dispatchMessage(); });
     </script>
 </body>
 </html>

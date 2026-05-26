@@ -35,7 +35,7 @@ jobs:
         org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
         EOF
 
-        # 2. AndroidManifest.xml (Full Camera & Mic hardware features enabled)
+        # 2. AndroidManifest.xml (Notification Permission Added)
         cat << 'EOF' > android/app/src/main/AndroidManifest.xml
         <manifest xmlns:android="http://schemas.android.com/apk/res/android">
             
@@ -46,8 +46,9 @@ jobs:
             <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
             <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
             
+            <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+            
             <uses-feature android:name="android.hardware.camera" android:required="false" />
-            <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
             <uses-feature android:name="android.hardware.microphone" android:required="false" />
             <uses-feature android:name="android.hardware.location.gps" android:required="false" />
 
@@ -75,35 +76,42 @@ jobs:
             android:layout_height="match_parent" />
         EOF
 
-        # 4. MainActivity.java (Bridges Android OS permissions directly to HTML WebView)
+        # 4. MainActivity.java (With Native Notification Bridge & JSInterface)
         cat << 'EOF' > android/app/src/main/java/com/compiler/htmltoapk/MainActivity.java
         package com.compiler.htmltoapk;
         
         import android.Manifest;
         import android.app.Activity;
+        import android.app.NotificationChannel;
+        import android.app.NotificationManager;
+        import android.content.Context;
         import android.content.pm.PackageManager;
         import android.os.Build;
         import android.os.Bundle;
         import android.webkit.PermissionRequest;
         import android.webkit.WebChromeClient;
         import android.webkit.GeolocationPermissions;
+        import android.webkit.JavascriptInterface;
         import android.webkit.WebSettings;
         import android.webkit.WebView;
         import android.webkit.WebViewClient;
         import androidx.core.app.ActivityCompat;
+        import androidx.core.app.NotificationCompat;
         import androidx.core.content.ContextCompat;
 
         public class MainActivity extends Activity {
             private WebView webView;
             private static final int PERMISSION_REQUEST_CODE = 123;
+            private static final String CHANNEL_ID = "app_notifications";
 
             @Override
             protected void onCreate(Bundle savedInstanceState) {
                 super.onCreate(savedInstanceState);
                 setContentView(R.layout.activity_main);
                 
-                webView = (WebView) findViewById(R.id.webview);
+                createNotificationChannel();
                 
+                webView = (WebView) findViewById(R.id.webview);
                 WebSettings webSettings = webView.getSettings();
                 webSettings.setJavaScriptEnabled(true);
                 webSettings.setDomStorageEnabled(true);
@@ -111,11 +119,13 @@ jobs:
                 webSettings.setAllowFileAccess(true);
                 webSettings.setAllowContentAccess(true);
                 webSettings.setGeolocationEnabled(true);
-                webSettings.setMediaPlaybackRequiresUserGesture(false); // HTML Media Auto-play allow karega
+                webSettings.setMediaPlaybackRequiresUserGesture(false);
                 
                 webView.setWebViewClient(new WebViewClient());
                 
-                // Super WebChromeClient to force grant all inner HTML media requests
+                // JavaScript Bridge Connection
+                webView.addJavascriptInterface(new WebAppInterface(this), "AndroidBridge");
+                
                 webView.setWebChromeClient(new WebChromeClient() {
                     @Override
                     public void onPermissionRequest(final PermissionRequest request) {
@@ -123,7 +133,6 @@ jobs:
                             @Override
                             public void run() {
                                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                                    // HTML file ke mangte hi automatic grant kar dega
                                     request.grant(request.getResources());
                                 }
                             }
@@ -141,11 +150,58 @@ jobs:
                 webView.loadUrl("file:///android_asset/index.html");
             }
 
+            // JavaScript Interface Class
+            public class WebAppInterface {
+                Context mContext;
+                WebAppInterface(Context c) { mContext = c; }
+
+                @JavascriptInterface
+                public void showNotification(String title, String message) {
+                    NotificationCompat.Builder builder = new NotificationCompat.Builder(mContext, CHANNEL_ID)
+                            .setSmallIcon(android.R.drawable.stat_notify_chat)
+                            .setContentTitle(title)
+                            .setContentText(message)
+                            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                            .setAutoCancel(true);
+
+                    NotificationManager notificationManager = (NotificationManager) mContext.getSystemService(Context.NOTIFICATION_SERVICE);
+                    if (notificationManager != null) {
+                        notificationManager.notify(1, builder.build());
+                    }
+                }
+            }
+
+            private void createNotificationChannel() {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    CharSequence name = "App Notifications";
+                    String description = "Channel for app test notifications";
+                    int importance = NotificationManager.IMPORTANCE_DEFAULT;
+                    NotificationChannel channel = new NotificationChannel(CHANNEL_ID, name, importance);
+                    channel.setDescription(description);
+                    NotificationManager notificationManager = getSystemService(NotificationManager.class);
+                    if (notificationManager != null) {
+                        notificationManager.createNotificationChannel(channel);
+                    }
+                }
+            }
+
             private void checkAndRequestPermissions() {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { // Android 13+
+                    if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED ||
+                        ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED ||
+                        ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                        
+                        ActivityCompat.requestPermissions(this,
+                                new String[]{
+                                        Manifest.permission.POST_NOTIFICATIONS,
+                                        Manifest.permission.CAMERA,
+                                        Manifest.permission.RECORD_AUDIO,
+                                        Manifest.permission.ACCESS_FINE_LOCATION
+                                }, PERMISSION_REQUEST_CODE);
+                    }
+                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED ||
-                        ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED ||
-                        ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                        ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
                         
                         ActivityCompat.requestPermissions(this,
                                 new String[]{
@@ -211,7 +267,7 @@ jobs:
         if [ -f "logo.png" ]; then
           cp logo.png android/app/src/main/res/mipmap-mdpi/ic_launcher.png
         else
-          echo "logo.png not found. Creating a blank fallback icon..."
+          echo "logo.png not found. Creating fallback icon..."
           touch android/app/src/main/res/mipmap-mdpi/ic_launcher.png
         fi
 

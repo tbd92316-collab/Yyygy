@@ -3,75 +3,381 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced Hybrid WebApp</title>
+    <title>Fast Chat Pro - Auth & Leaderboard</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    
     <style>
-        body {
-            background-color: #0f172a;
-            color: #f8fafc;
-            font-family: Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-        .container {
-            background: #1e293b;
-            padding: 25px;
-            border-radius: 12px;
-            text-align: center;
-            max-width: 400px;
-            width: 100%;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-        }
-        h2 { color: #38bdf8; margin-top: 0; }
-        p { color: #94a3b8; font-size: 14px; }
-        .btn {
-            background: #2563eb;
-            color: white;
-            border: none;
-            padding: 12px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 16px;
-            width: 100%;
-            margin-top: 10px;
-            transition: 0.2s;
-        }
-        .btn:active { background: #1d4ed8; }
-        .btn-notify { background: #22c55e; }
-        .btn-notify:active { background: #16a34a; }
+        * { box-sizing: border-box; font-family: 'Segoe UI', Arial, sans-serif; }
+        body { background-color: #111b21; margin: 0; color: #e9edef; height: 100vh; display: flex; flex-direction: column; }
+        
+        .page { display: none; height: 100vh; flex-direction: column; }
+        .active-page { display: flex; }
+
+        /* Custom Premium Header */
+        .header { background-color: #202c33; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.5); }
+        .header-title { font-size: 18px; font-weight: bold; color: #e9edef; }
+        
+        /* Box Authentication Layout */
+        .auth-container { margin: auto; padding: 24px; background: #222e35; border-radius: 12px; width: 90%; max-width: 360px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        .input-field { width: 100%; padding: 12px; background: #2a3942; border: none; color: white; border-radius: 6px; margin-bottom: 12px; outline: none; font-size: 14px; }
+        .btn { background: #00a884; color: white; border: none; padding: 12px; width: 100%; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 15px; transition: 0.2s; }
+        .btn:active { transform: scale(0.98); }
+        .toggle-link { color: #34b7f1; font-size: 13px; margin-top: 14px; display: inline-block; cursor: pointer; }
+
+        /* Dashboard & Leaderboard List Styles */
+        .tabs-header { display: flex; background: #202c33; border-bottom: 1px solid #2a3942; }
+        .tab-btn { flex: 1; padding: 12px; background: transparent; border: none; color: #8696a0; font-weight: bold; cursor: pointer; text-align: center; }
+        .active-tab { color: #00a884; border-bottom: 3px solid #00a884; }
+
+        .list-viewport { flex: 1; overflow-y: auto; padding: 8px 0; }
+        .user-item { display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid #222e35; cursor: pointer; }
+        .user-item:active { background-color: #2a3942; }
+        .user-avatar { width: 45px; height: 45px; background: #005c4b; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px; margin-right: 14px; color: white; }
+        
+        /* Chat View Interface */
+        .chat-stream { flex: 1; overflow-y: auto; padding: 16px; background-color: #0b141a; display: flex; flex-direction: column; gap: 8px; }
+        .bubble { max-width: 75%; padding: 8px 12px; border-radius: 8px; font-size: 15px; position: relative; word-wrap: break-word; line-height: 1.4; }
+        .bubble-in { background-color: #202c33; align-self: flex-start; border-top-left-radius: 0; }
+        .bubble-out { background-color: #005c4b; align-self: flex-end; border-top-right-radius: 0; }
+        .shared-img { max-width: 100%; border-radius: 6px; margin-top: 4px; display: block; cursor: pointer; }
+
+        .action-row { background-color: #202c33; padding: 10px; display: flex; align-items: center; gap: 8px; }
+        .back-btn { background: transparent; border: none; color: #8696a0; font-size: 20px; cursor: pointer; margin-right: 8px; }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <h2>System Livie! ✅</h2>
-        <p>Permissions, Camera, Mic, GPS aur Notifilcation test karne ke liye niche click karein.</p>
+    <div id="authPage" class="page active-page">
+        <div class="auth-container" id="loginBox">
+            <h2 style="color:#00a884; margin-top:0; font-size:26px;">Fast Chat Pro ⚡</h2>
+            <p style="color:#8696a0; font-size:14px; margin-bottom:20px;">Welcome back! Login karke chat start karein.</p>
+            <input type="email" id="loginEmail" class="input-field" placeholder="Email ID dalein..." autocomplete="off">
+            <input type="password" id="loginPass" class="input-field" placeholder="Password dalein...">
+            <button class="btn" onclick="handleLogin()">Login</button>
+            <span class="toggle-link" onclick="toggleAuthForms(true)">Naya account banayein (Register)</span>
+        </div>
+
+        <div class="auth-container" id="registerBox" style="display:none;">
+            <h2 style="color:#00a884; margin-top:0; font-size:26px;">Register Here 🔥</h2>
+            <p style="color:#8696a0; font-size:14px; margin-bottom:20px;">Apna details bhar kar leaderboard me shamil hon.</p>
+            <input type="text" id="regName" class="input-field" placeholder="Apna Poora Naam likho..." autocomplete="off">
+            <input type="email" id="regEmail" class="input-field" placeholder="Email address dalein..." autocomplete="off">
+            <input type="password" id="regPass" class="input-field" placeholder="Ek strong password chunen...">
+            <button class="btn" onclick="handleRegister()">Register & Save</button>
+            <span class="toggle-link" onclick="toggleAuthForms(false)">Pehle se account hai? Login karein</span>
+        </div>
+    </div>
+
+    <div id="dashboardPage" class="page">
+        <div class="header">
+            <div class="header-title">Fast Chat Dashboard</div>
+            <button style="background:transparent; border:none; color:#ef4444; font-weight:bold;" onclick="handleLogout()">Logout</button>
+        </div>
         
-        <button class="btn btn-notify" onclick="sendTestNotification()">Notification Bhejo</button>
+        <div class="tabs-header">
+            <div id="tabUsers" class="tab-btn active-tab" onclick="switchDashboardTab('users')">CHATS</div>
+            <div id="tabLeaderboard" class="tab-btn" onclick="switchDashboardTab('leaderboard')">LEADERBOARD 🏆</div>
+        </div>
+
+        <div id="usersListSection" class="list-viewport"></div>
+        <div id="leaderboardSection" class="list-viewport" style="display:none;"></div>
+    </div>
+
+    <div id="chatPage" class="page">
+        <div class="header">
+            <div style="display:flex; align-items:center;">
+                <button class="back-btn" onclick="exitChatRoom()">✕</button>
+                <div class="user-avatar" id="activeChatAvatar" style="width:34px; height:34px; font-size:14px; margin-right:10px;">?</div>
+                <div class="header-title" id="activeChatName">Loading User...</div>
+            </div>
+        </div>
         
-        <button class="btn" onclick="alert('JS Interface Working!')">Alert Test</button>
+        <div class="chat-stream" id="messageStream"></div>
+
+        <div class="action-row">
+            <input type="text" id="msgInput" class="input-field" placeholder="Type a message..." style="margin:0; flex:1;" autocomplete="off">
+            <button class="btn" style="width:auto; padding:12px; background:#2a3942;" onclick="shareMediaLink()">🖼️</button>
+            <button class="btn" style="width:auto; padding:12px 18px;" onclick="dispatchMessage()">Send</button>
+        </div>
     </div>
 
     <script>
-        function sendTestNotification() {
-            // Yeh check karta hai ki kya app Android ke andar chal rahi hai aur bridge connected hai
-            if (window.AndroidBridge && typeof window.AndroidBridge.showNotification === 'function') {
-                
-                // Native Java function ko call kiya title aur message ke sath
-                window.AndroidBridge.showNotification("Fast Chat Test", "Bhai, HTML se notification chal gaya! 🔥");
-                
+        // Realtime Firebase configuration injected dynamically from credentials
+        const firebaseConfig = {
+            apiKey: "AIzaSyAOsGkBI2QDkZAuogCEWsX2Eu3Q2jJYeCE",
+            authDomain: "movi-hub.firebaseapp.com",
+            databaseURL: "https://movi-hub-default-rtdb.firebaseio.com",
+            projectId: "movi-hub",
+            storageBucket: "movi-hub.firebasestorage.app",
+            messagingSenderId: "15875013349",
+            appId: "1:15875013349:web:ab65915c3bd575772ab20c",
+            measurementId: "G-PXR9TD2863"
+        };
+        firebase.initializeApp(firebaseConfig);
+        
+        const auth = firebase.auth();
+        const database = firebase.database();
+
+        let currentUid = "";
+        let currentUserName = "";
+        let targetUid = "";
+        let targetUserName = "";
+        let activeTabMode = "users";
+        let trackingHistoryFlag = false;
+
+        // Auto auth persistent listener state tracking
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                currentUid = user.uid;
+                database.ref('profiles/' + currentUid).once('value', snap => {
+                    const profile = snap.val();
+                    if(profile) {
+                        currentUserName = profile.name;
+                        launchDashboard();
+                    }
+                });
             } else {
-                // Agar normal browser me khologe toh alert dikhega
-                alert("Notification simulation: Android device par hi real notification dikhega!");
+                showPage('authPage');
+            }
+        });
+
+        function toggleAuthForms(showRegister) {
+            document.getElementById('loginBox').style.display = showRegister ? 'none' : 'block';
+            document.getElementById('registerBox').style.display = showRegister ? 'block' : 'none';
+        }
+
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active-page'));
+            document.getElementById(pageId).classList.add('active-page');
+        }
+
+        // Email & Password Registration Handler
+        function handleRegister() {
+            const name = document.getElementById('regName').value.trim();
+            const email = document.getElementById('regEmail').value.trim();
+            const pass = document.getElementById('regPass').value.trim();
+
+            if(!name || !email || !pass) return alert("Bhai saare fields dalo!");
+
+            auth.createUserWithEmailAndPassword(email, pass)
+                .then(cred => {
+                    // Create Profile & Push instantly to Leaderboard Database Node
+                    const profileData = {
+                        uid: cred.user.uid,
+                        name: name,
+                        email: email,
+                        joinedAt: firebase.database.ServerValue.TIMESTAMP
+                    };
+                    
+                    database.ref('profiles/' + cred.user.uid).set(profileData);
+                    // Leaderboard indexing node
+                    database.ref('leaderboard/' + cred.user.uid).set({
+                        name: name,
+                        score: 0, // Base level initialization
+                        timestamp: firebase.database.ServerValue.TIMESTAMP
+                    });
+
+                    currentUserName = name;
+                    alert("Registration successful! Leaderboard me aapka naam add ho gaya hai. 🏆");
+                })
+                .catch(err => alert("Error: " + err.message));
+        }
+
+        // Email & Password Login Handler
+        function handleLogin() {
+            const email = document.getElementById('loginEmail').value.trim();
+            const pass = document.getElementById('loginPass').value.trim();
+
+            if(!email || !pass) return alert("Email aur Password khali nahi ho sakta!");
+
+            auth.signInWithEmailAndPassword(email, pass)
+                .catch(err => alert("Login Failed: " + err.message));
+        }
+
+        function handleLogout() {
+            auth.signOut().then(() => {
+                location.reload();
+            });
+        }
+
+        function launchDashboard() {
+            showPage('dashboardPage');
+            syncUsersAndLeaderboardEngine();
+            initializeBackgroundNotificationBroker();
+        }
+
+        function switchDashboardTab(tab) {
+            activeTabMode = tab;
+            document.getElementById('tabUsers').classList.toggle('active-tab', tab === 'users');
+            document.getElementById('tabLeaderboard').classList.toggle('active-tab', tab === 'leaderboard');
+            
+            document.getElementById('usersListSection').style.display = tab === 'users' ? 'block' : 'none';
+            document.getElementById('leaderboardSection').style.display = tab === 'leaderboard' ? 'block' : 'none';
+        }
+
+        // Syncs standard online members and competitive leaderboard node list
+        function syncUsersAndLeaderboardEngine() {
+            // 1. Fetching all Chat users
+            database.ref('profiles').on('value', snapshot => {
+                const container = document.getElementById('usersListSection');
+                container.innerHTML = "";
+                const data = snapshot.val() || {};
+
+                Object.keys(data).forEach(uid => {
+                    if (uid === currentUid) return; // Skip self representation
+
+                    const user = data[uid];
+                    const div = document.createElement('div');
+                    div.className = "user-item";
+                    div.onclick = () => launchChatShellWith(user.uid, user.name);
+
+                    div.innerHTML = `
+                        <div class="user-avatar">${user.name.charAt(0).toUpperCase()}</div>
+                        <div>
+                            <div style="font-weight:bold;">${user.name}</div>
+                            <div style="font-size:12px; color:#8696a0;">Tap to chat & share links</div>
+                        </div>
+                    `;
+                    container.appendChild(div);
+                });
+            });
+
+            // 2. Fetching Leaderboard list ordered alphabetically/time
+            database.ref('leaderboard').on('value', snapshot => {
+                const container = document.getElementById('leaderboardSection');
+                container.innerHTML = "";
+                const data = snapshot.val() || {};
+                let rank = 1;
+
+                Object.keys(data).forEach(uid => {
+                    const entry = data[uid];
+                    const div = document.createElement('div');
+                    div.className = "user-item";
+                    div.style.borderLeft = rank <= 3 ? "4px solid #eab308" : "none"; // Gold highlight for top ranks
+
+                    div.innerHTML = `
+                        <div style="font-size:18px; font-weight:bold; margin-right:15px; color:#00a884;">#${rank}</div>
+                        <div class="user-avatar" style="background:#2a3942;">${entry.name.charAt(0).toUpperCase()}</div>
+                        <div>
+                            <div style="font-weight:bold; color:#fff;">${entry.name}</div>
+                            <div style="font-size:11px; color:#8696a0;">Status: Active Verified Member ✅</div>
+                        </div>
+                    `;
+                    container.appendChild(div);
+                    rank++;
+                });
+            });
+        }
+
+        // Room ID mapping system secure alphanumeric generator 
+        function deriveSecureRoomId() {
+            return currentUid < targetUid ? `${currentUid}_${targetUid}` : `${targetUid}_${currentUid}`;
+        }
+
+        function launchChatShellWith(uid, name) {
+            targetUid = uid;
+            targetUserName = name;
+            document.getElementById('activeChatName').innerText = targetUserName;
+            document.getElementById('activeChatAvatar').innerText = targetUserName.charAt(0).toUpperCase();
+            showPage('chatPage');
+            streamChatMessagesRealtime();
+        }
+
+        function exitChatRoom() {
+            targetUid = "";
+            showPage('dashboardPage');
+        }
+
+        // Realtime private chat database loop connection
+        function streamChatMessagesRealtime() {
+            const roomId = deriveSecureRoomId();
+            database.ref('secure_chats/' + roomId).off();
+            const container = document.getElementById('messageStream');
+            container.innerHTML = "";
+
+            database.ref('secure_chats/' + roomId).on('child_added', snapshot => {
+                const msg = snapshot.val();
+                const isMe = msg.senderUid === currentUid;
+
+                const bubble = document.createElement('div');
+                bubble.className = `bubble ${isMe ? 'bubble-out' : 'bubble-in'}`;
+
+                let contentHtml = msg.text ? `<div>${msg.text}</div>` : "";
+                if(msg.mediaUrl) {
+                    contentHtml += `<img src="${msg.mediaUrl}" class="shared-img" onclick="window.open('${msg.mediaUrl}')">`;
+                }
+
+                bubble.innerHTML = contentHtml;
+                container.appendChild(bubble);
+                container.scrollTop = container.scrollHeight;
+            });
+        }
+
+        function dispatchMessage(mediaLink = "") {
+            const input = document.getElementById('msgInput');
+            const txt = input.value.trim();
+
+            if(!txt && !mediaLink) return;
+
+            const roomId = deriveSecureRoomId();
+            const messageObj = {
+                senderUid: currentUid,
+                senderName: currentUserName,
+                receiverUid: targetUid,
+                text: txt,
+                mediaUrl: mediaLink,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            };
+
+            database.ref('secure_chats/' + roomId).push(messageObj);
+            input.value = "";
+        }
+
+        function shareMediaLink() {
+            const url = prompt("Apni media photo/image ka direct link url dalo:");
+            if (url && url.trim().startsWith('http')) {
+                dispatchMessage(url.trim());
+            } else if(url) {
+                alert("Kripya valid browser image URL link pradan karein.");
             }
         }
-    </script>
 
+        // BACKGROUND NATIVE NOTIFICATION TRIGGER
+        function initializeBackgroundNotificationBroker() {
+            database.ref('secure_chats').on('value', snapshot => {
+                if(!trackingHistoryFlag) {
+                    trackingHistoryFlag = true; // Block spam alerts on initialization setup
+                    return;
+                }
+
+                const allRooms = snapshot.val() || {};
+                Object.keys(allRooms).forEach(roomId => {
+                    if (roomId.includes(currentUid)) {
+                        const messageCluster = allRooms[roomId];
+                        const topKey = Object.keys(messageCluster).pop();
+                        const finalMessage = messageCluster[topKey];
+
+                        if (finalMessage.senderUid !== currentUid && finalMessage.receiverUid === currentUid) {
+                            // Agar chat container active pane open nahi hai tab notification pop up karega
+                            if (targetUid !== finalMessage.senderUid) {
+                                if (window.AndroidBridge) {
+                                    const bodyText = finalMessage.mediaUrl ? "🖼️ Sent a photo reference link" : finalMessage.text;
+                                    window.AndroidBridge.pushBackgroundAlert(finalMessage.senderName, bodyText);
+                                }
+                            }
+                        }
+                    }
+                });
+            });
+        }
+
+        // Enter key action hook
+        document.getElementById('msgInput').addEventListener('keydown', (e) => {
+            if(e.key === 'Enter') dispatchMessage();
+        });
+    </script>
 </body>
 </html>

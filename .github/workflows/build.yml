@@ -14,6 +14,7 @@ jobs:
     - name: Checkout Repository Code
       uses: actions/checkout@v4
 
+    # Java Setup v4 explicitly pinned with stable architecture
     - name: Set up Java JDK 17
       uses: actions/setup-java@v4
       with:
@@ -35,7 +36,7 @@ jobs:
         org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
         EOF
 
-        # 2. AndroidManifest.xml (Notification Permission Added)
+        # 2. AndroidManifest.xml (Full hardware & notification system declared)
         cat << 'EOF' > android/app/src/main/AndroidManifest.xml
         <manifest xmlns:android="http://schemas.android.com/apk/res/android">
             
@@ -45,10 +46,10 @@ jobs:
             <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
             <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
             <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-            
             <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
             
             <uses-feature android:name="android.hardware.camera" android:required="false" />
+            <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
             <uses-feature android:name="android.hardware.microphone" android:required="false" />
             <uses-feature android:name="android.hardware.location.gps" android:required="false" />
 
@@ -76,7 +77,7 @@ jobs:
             android:layout_height="match_parent" />
         EOF
 
-        # 4. MainActivity.java (With Native Notification Bridge & JSInterface)
+        # 4. MainActivity.java (Bridges Camera/Mic Web resources to HTML context)
         cat << 'EOF' > android/app/src/main/java/com/compiler/htmltoapk/MainActivity.java
         package com.compiler.htmltoapk;
         
@@ -122,21 +123,15 @@ jobs:
                 webSettings.setMediaPlaybackRequiresUserGesture(false);
                 
                 webView.setWebViewClient(new WebViewClient());
-                
-                // JavaScript Bridge Connection
                 webView.addJavascriptInterface(new WebAppInterface(this), "AndroidBridge");
                 
                 webView.setWebChromeClient(new WebChromeClient() {
                     @Override
                     public void onPermissionRequest(final PermissionRequest request) {
-                        MainActivity.this.runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                                    request.grant(request.getResources());
-                                }
-                            }
-                        });
+                        // Directly force check and grant Web Media resources
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                            request.grant(request.getResources());
+                        }
                     }
 
                     @Override
@@ -146,11 +141,9 @@ jobs:
                 });
 
                 checkAndRequestPermissions();
-                
                 webView.loadUrl("file:///android_asset/index.html");
             }
 
-            // JavaScript Interface Class
             public class WebAppInterface {
                 Context mContext;
                 WebAppInterface(Context c) { mContext = c; }
@@ -173,11 +166,7 @@ jobs:
 
             private void createNotificationChannel() {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    CharSequence name = "App Notifications";
-                    String description = "Channel for app test notifications";
-                    int importance = NotificationManager.IMPORTANCE_DEFAULT;
-                    NotificationChannel channel = new NotificationChannel(CHANNEL_ID, name, importance);
-                    channel.setDescription(description);
+                    NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "App Notifications", NotificationManager.IMPORTANCE_DEFAULT);
                     NotificationManager notificationManager = getSystemService(NotificationManager.class);
                     if (notificationManager != null) {
                         notificationManager.createNotificationChannel(channel);
@@ -186,30 +175,21 @@ jobs:
             }
 
             private void checkAndRequestPermissions() {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { // Android 13+
-                    if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED ||
-                        ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED ||
-                        ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-                        
-                        ActivityCompat.requestPermissions(this,
-                                new String[]{
-                                        Manifest.permission.POST_NOTIFICATIONS,
-                                        Manifest.permission.CAMERA,
-                                        Manifest.permission.RECORD_AUDIO,
-                                        Manifest.permission.ACCESS_FINE_LOCATION
-                                }, PERMISSION_REQUEST_CODE);
-                    }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    ActivityCompat.requestPermissions(this, new String[]{
+                            Manifest.permission.POST_NOTIFICATIONS,
+                            Manifest.permission.CAMERA,
+                            Manifest.permission.RECORD_AUDIO,
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION
+                    }, PERMISSION_REQUEST_CODE);
                 } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED ||
-                        ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-                        
-                        ActivityCompat.requestPermissions(this,
-                                new String[]{
-                                        Manifest.permission.CAMERA,
-                                        Manifest.permission.RECORD_AUDIO,
-                                        Manifest.permission.ACCESS_FINE_LOCATION
-                                }, PERMISSION_REQUEST_CODE);
-                    }
+                    ActivityCompat.requestPermissions(this, new String[]{
+                            Manifest.permission.CAMERA,
+                            Manifest.permission.RECORD_AUDIO,
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION
+                    }, PERMISSION_REQUEST_CODE);
                 }
             }
 
@@ -252,9 +232,7 @@ jobs:
                 targetSdk 34
                 versionCode 1
                 versionName "1.0"
-                ndk {
-                    abiFilters "arm64-v8a", "armeabi-v7a"
-                }
+                ndk { abiFilters "arm64-v8a", "armeabi-v7a" }
             }
         }
         dependencies {
@@ -267,7 +245,6 @@ jobs:
         if [ -f "logo.png" ]; then
           cp logo.png android/app/src/main/res/mipmap-mdpi/ic_launcher.png
         else
-          echo "logo.png not found. Creating fallback icon..."
           touch android/app/src/main/res/mipmap-mdpi/ic_launcher.png
         fi
 
@@ -276,7 +253,7 @@ jobs:
         if [ -f "index.html" ]; then
           cp index.html android/app/src/main/assets/index.html
         else
-          echo "<h1>Error</h1><p>Bhai repo me index.html nahi mili!</p>" > android/app/src/main/assets/index.html
+          echo "<h1>Error</h1>" > android/app/src/main/assets/index.html
         fi
 
     - name: Build Android Project wrapper
@@ -293,3 +270,4 @@ jobs:
       with:
         name: My-HTML-App-APK
         path: android/app/build/outputs/apk/debug/app-debug.apk
+        

@@ -1,228 +1,77 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-
-  <!-- Auto Redirect -->
-  <meta http-equiv="refresh" content="4; url=https://www.youtube.com">
-
-  <title>YouTube Mobile Loading</title>
-
-  <style>
-    *{
-      margin:0;
-      padding:0;
-      box-sizing:border-box;
-    }
-
-    body{
-      background:#0f0f0f;
-      font-family:Arial,sans-serif;
-      overflow:hidden;
-    }
-
-    /* Skeleton Effect */
-    .skeleton{
-      position:relative;
-      overflow:hidden;
-      background:#242424;
-      border-radius:12px;
-    }
-
-    .skeleton::before{
-      content:"";
-      position:absolute;
-      top:0;
-      left:-150px;
-      width:150px;
-      height:100%;
-      background:linear-gradient(
-        90deg,
-        transparent,
-        rgba(255,255,255,0.12),
-        transparent
-      );
-      animation:shine 1.2s infinite;
-    }
-
-    @keyframes shine{
-      100%{
-        left:100%;
-      }
-    }
-
-    /* Header */
-    .header{
-      height:56px;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      padding:0 14px;
-      border-bottom:1px solid #1f1f1f;
-    }
-
-    .yt-logo{
-      width:95px;
-      height:22px;
-    }
-
-    .header-icons{
-      display:flex;
-      gap:12px;
-    }
-
-    .icon{
-      width:26px;
-      height:26px;
-      border-radius:50%;
-    }
-
-    /* Category Chips */
-    .chips{
-      display:flex;
-      gap:10px;
-      padding:12px;
-      overflow:hidden;
-    }
-
-    .chip{
-      min-width:70px;
-      height:32px;
-      border-radius:30px;
-    }
-
-    /* Feed */
-    .feed{
-      display:flex;
-      flex-direction:column;
-      gap:24px;
-      padding-bottom:80px;
-    }
-
-    /* Video Card */
-    .video{
-      width:100%;
-    }
-
-    .thumb{
-      width:100%;
-      height:220px;
-      border-radius:0;
-    }
-
-    .video-info{
-      display:flex;
-      gap:12px;
-      padding:12px;
-    }
-
-    .channel{
-      width:38px;
-      height:38px;
-      border-radius:50%;
-      flex-shrink:0;
-    }
-
-    .text{
-      flex:1;
-    }
-
-    .line1{
-      width:95%;
-      height:15px;
-      margin-bottom:10px;
-    }
-
-    .line2{
-      width:60%;
-      height:13px;
-    }
-
-    /* Bottom Nav */
-    .bottom-nav{
-      position:fixed;
-      bottom:0;
-      left:0;
-      width:100%;
-      height:60px;
-      background:#0f0f0f;
-      border-top:1px solid #1f1f1f;
-      display:flex;
-      justify-content:space-around;
-      align-items:center;
-      padding:0 10px;
-    }
-
-    .nav-icon{
-      width:24px;
-      height:24px;
-      border-radius:8px;
-    }
-
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Hybrid WebApp</title>
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .container {
+            background: #1e293b;
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        h2 { color: #38bdf8; margin-top: 0; }
+        p { color: #94a3b8; font-size: 14px; }
+        .btn {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 16px;
+            width: 100%;
+            margin-top: 10px;
+            transition: 0.2s;
+        }
+        .btn:active { background: #1d4ed8; }
+        .btn-notify { background: #22c55e; }
+        .btn-notify:active { background: #16a34a; }
+    </style>
 </head>
 <body>
 
-  <!-- Header -->
-  <div class="header">
-    <div class="yt-logo skeleton"></div>
-
-    <div class="header-icons">
-      <div class="icon skeleton"></div>
-      <div class="icon skeleton"></div>
-      <div class="icon skeleton"></div>
-    </div>
-  </div>
-
-  <!-- Chips -->
-  <div class="chips">
-    <div class="chip skeleton"></div>
-    <div class="chip skeleton"></div>
-    <div class="chip skeleton"></div>
-    <div class="chip skeleton"></div>
-  </div>
-
-  <!-- Feed -->
-  <div class="feed">
-
-    <!-- Video 1 -->
-    <div class="video">
-      <div class="thumb skeleton"></div>
-
-      <div class="video-info">
-        <div class="channel skeleton"></div>
-
-        <div class="text">
-          <div class="line1 skeleton"></div>
-          <div class="line2 skeleton"></div>
-        </div>
-      </div>
+    <div class="container">
+        <h2>System Live! ✅</h2>
+        <p>Permissions, Camera, Mic, GPS aur Notification test karne ke liye niche click karein.</p>
+        
+        <button class="btn btn-notify" onclick="sendTestNotification()">Notification Bhejo</button>
+        
+        <button class="btn" onclick="alert('JS Interface Working!')">Alert Test</button>
     </div>
 
-    <!-- Video 2 -->
-    <div class="video">
-      <div class="thumb skeleton"></div>
-
-      <div class="video-info">
-        <div class="channel skeleton"></div>
-
-        <div class="text">
-          <div class="line1 skeleton"></div>
-          <div class="line2 skeleton"></div>
-        </div>
-      </div>
-    </div>
-
-  </div>
-
-  <!-- Bottom Navigation -->
-  <div class="bottom-nav">
-    <div class="nav-icon skeleton"></div>
-    <div class="nav-icon skeleton"></div>
-    <div class="nav-icon skeleton"></div>
-    <div class="nav-icon skeleton"></div>
-  </div>
+    <script>
+        function sendTestNotification() {
+            // Yeh check karta hai ki kya app Android ke andar chal rahi hai aur bridge connected hai
+            if (window.AndroidBridge && typeof window.AndroidBridge.showNotification === 'function') {
+                
+                // Native Java function ko call kiya title aur message ke sath
+                window.AndroidBridge.showNotification("Fast Chat Test", "Bhai, HTML se notification chal gaya! 🔥");
+                
+            } else {
+                // Agar normal browser me khologe toh alert dikhega
+                alert("Notification simulation: Android device par hi real notification dikhega!");
+            }
+        }
+    </script>
 
 </body>
 </html>

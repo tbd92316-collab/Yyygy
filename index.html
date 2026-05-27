@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fast Chat Pro - Smart Alert System</title>
+    <title>Fast Chat Ultimate</title>
     
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
@@ -11,10 +11,15 @@
     
     <style>
         * { box-sizing: border-box; font-family: 'Segoe UI', Arial, sans-serif; }
-        body { background-color: #111b21; margin: 0; color: #e9edef; height: 100vh; display: flex; flex-direction: column; }
+        body { background-color: #111b21; margin: 0; color: #e9edef; height: 100vh; display: flex; flex-direction: column; position: relative; }
         
         .page { display: none; height: 100vh; flex-direction: column; }
         .active-page { display: flex; }
+
+        /* Global UI Loader Screen Overlay */
+        #globalLoader { position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(17,27,33,0.85); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.3s; }
+        .spinner { width: 50px; height: 50px; border: 5px solid #2a3942; border-top: 5px solid #00a884; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
         .header { background-color: #202c33; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.5); }
         .header-title { font-size: 18px; font-weight: bold; color: #e9edef; }
@@ -33,11 +38,18 @@
         .user-item:active { background-color: #2a3942; }
         .user-avatar { width: 45px; height: 45px; background: #005c4b; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px; margin-right: 14px; color: white; }
         
+        /* Message Stream Bubble Styles */
         .chat-stream { flex: 1; overflow-y: auto; padding: 16px; background-color: #0b141a; display: flex; flex-direction: column; gap: 8px; }
-        .bubble { max-width: 75%; padding: 8px 12px; border-radius: 8px; font-size: 15px; position: relative; word-wrap: break-word; line-height: 1.4; }
+        .bubble { max-width: 75%; padding: 8px 12px 6px 12px; border-radius: 8px; font-size: 15px; position: relative; word-wrap: break-word; line-height: 1.4; display: flex; flex-direction: column; }
         .bubble-in { background-color: #202c33; align-self: flex-start; border-top-left-radius: 0; }
         .bubble-out { background-color: #005c4b; align-self: flex-end; border-top-right-radius: 0; }
-        .shared-img { max-width: 100%; border-radius: 6px; margin-top: 4px; display: block; }
+        
+        /* Timestamp and Ticks Layout */
+        .msg-meta { display: flex; align-items: center; justify-content: flex-end; gap: 4px; font-size: 11px; color: #8696a0; margin-top: 4px; align-self: flex-end; }
+        .bubble-out .msg-meta { color: #a4cbb4; }
+        .tick-icon { font-size: 12px; color: #53bdeb; }
+
+        .shared-img { max-width: 100%; max-height: 220px; object-fit: cover; border-radius: 6px; margin-top: 2px; margin-bottom: 2px; display: block; }
 
         .action-row { background-color: #202c33; padding: 10px; display: flex; align-items: center; gap: 8px; }
         .back-btn { background: transparent; border: none; color: #8696a0; font-size: 20px; cursor: pointer; margin-right: 8px; }
@@ -45,30 +57,35 @@
 </head>
 <body>
 
-    <div id="authPage" class="page active-page">
+    <div id="globalLoader">
+        <div class="spinner"></div>
+        <p style="color:#8696a0; margin-top:14px; font-size:14px;">Connecting to Firebase Database...</p>
+    </div>
+
+    <div id="authPage" class="page">
         <div class="auth-container" id="loginBox">
-            <h2 style="color:#00a884; margin-top:0;">Fast Chat Pro ⚡</h2>
-            <p style="color:#8696a0; font-size:14px; margin-bottom:20px;">Login karke chat start karein.</p>
-            <input type="email" id="loginEmail" class="input-field" placeholder="Email ID dalein..." autocomplete="off">
-            <input type="password" id="loginPass" class="input-field" placeholder="Password dalein...">
+            <h2 style="color:#00a884; margin-top:0;">Fast Chat Ultimate ⚡</h2>
+            <p style="color:#8696a0; font-size:14px; margin-bottom:20px;">Secure Account Login</p>
+            <input type="email" id="loginEmail" class="input-field" placeholder="Email address dalein...">
+            <input type="password" id="loginPass" class="input-field" placeholder="Password...">
             <button class="btn" onclick="handleLogin()">Login</button>
-            <span class="toggle-link" onclick="toggleAuthForms(true)">Naya account banayein (Register)</span>
+            <span class="toggle-link" onclick="toggleAuthForms(true)">Naya Account Banayein</span>
         </div>
 
         <div class="auth-container" id="registerBox" style="display:none;">
-            <h2 style="color:#00a884; margin-top:0;">Register Here 🔥</h2>
-            <input type="text" id="regName" class="input-field" placeholder="Apna Poora Naam likho..." autocomplete="off">
-            <input type="email" id="regEmail" class="input-field" placeholder="Email address dalein..." autocomplete="off">
-            <input type="password" id="regPass" class="input-field" placeholder="Password chunen...">
-            <button class="btn" onclick="handleRegister()">Register & Save</button>
-            <span class="toggle-link" onclick="toggleAuthForms(false)">Login karein</span>
+            <h2 style="color:#00a884; margin-top:0;">Register Account 🔥</h2>
+            <input type="text" id="regName" class="input-field" placeholder="Apna Naam likho...">
+            <input type="email" id="regEmail" class="input-field" placeholder="Email address...">
+            <input type="password" id="regPass" class="input-field" placeholder="Password set karein...">
+            <button class="btn" onclick="handleRegister()">Register Now</button>
+            <span class="toggle-link" onclick="toggleAuthForms(false)">Pehle se account hai? Login</span>
         </div>
     </div>
 
     <div id="dashboardPage" class="page">
         <div class="header">
             <div class="header-title">Fast Chat</div>
-            <button style="background:transparent; border:none; color:#ef4444; font-weight:bold;" onclick="handleLogout()">Logout</button>
+            <button style="background:transparent; border:none; color:#ef4444; font-weight:bold; cursor:pointer;" onclick="handleLogout()">Logout</button>
         </div>
         <div class="tabs-header">
             <div id="tabUsers" class="tab-btn active-tab" onclick="switchDashboardTab('users')">CHATS</div>
@@ -83,19 +100,25 @@
             <div style="display:flex; align-items:center;">
                 <button class="back-btn" onclick="exitChatRoom()">✕</button>
                 <div class="user-avatar" id="activeChatAvatar" style="width:34px; height:34px; font-size:14px; margin-right:10px;">?</div>
-                <div class="header-title" id="activeChatName">Loading User...</div>
+                <div class="header-title" id="activeChatName">Loading...</div>
             </div>
         </div>
         <div class="chat-stream" id="messageStream"></div>
+        
+        <div id="mediaInputArea" style="background:#1f2c34; padding:6px 12px; display:none; align-items:center; gap:8px; border-bottom:1px solid #2a3942;">
+            <input type="text" id="mediaUrlBox" class="input-field" placeholder="Yahan direct image URL link paste karo..." style="margin:0; flex:1; font-size:13px; padding:8px;">
+            <button class="btn" style="width:auto; padding:8px 12px; background:#ef4444;" onclick="closeMediaPanel()">Cancel</button>
+        </div>
+
         <div class="action-row">
             <input type="text" id="msgInput" class="input-field" placeholder="Type a message..." style="margin:0; flex:1;" autocomplete="off">
-            <button class="btn" style="width:auto; padding:12px; background:#2a3942;" onclick="shareMediaLink()">🖼️</button>
+            <button class="btn" style="width:auto; padding:12px; background:#2a3942;" onclick="openMediaPanel()">🖼️</button>
             <button class="btn" style="width:auto; padding:12px 18px;" onclick="dispatchMessage()">Send</button>
         </div>
     </div>
 
     <script>
-        // Firebase legacy project config
+        // Project Firebase config initialization
         const firebaseConfig = {
             apiKey: "AIzaSyAOsGkBI2QDkZAuogCEWsX2Eu3Q2jJYeCE",
             authDomain: "movi-hub.firebaseapp.com",
@@ -114,26 +137,29 @@
         let currentUserName = "";
         let targetUid = "";
         let targetUserName = "";
-        let historySkipFlag = false;
+
+        // Manage loader lifecycle
+        function showLoader() { document.getElementById('globalLoader').style.display = 'flex'; }
+        function hideLoader() { document.getElementById('globalLoader').style.display = 'none'; }
 
         auth.onAuthStateChanged(user => {
+            showLoader();
             if (user) {
                 currentUid = user.uid;
                 database.ref('profiles/' + currentUid).once('value', snap => {
                     const profile = snap.val();
                     if(profile) {
                         currentUserName = profile.name;
-                        
-                        // Send login credentials session to Native Service Bridge
                         if (window.AndroidBridge && typeof window.AndroidBridge.updateUserSession === 'function') {
                             window.AndroidBridge.updateUserSession(currentUid, currentUserName);
                         }
-                        
                         launchDashboard();
                     }
+                    hideLoader();
                 });
             } else {
                 showPage('authPage');
+                hideLoader();
             }
         });
 
@@ -151,21 +177,24 @@
             const name = document.getElementById('regName').value.trim();
             const email = document.getElementById('regEmail').value.trim();
             const pass = document.getElementById('regPass').value.trim();
-            if(!name || !email || !pass) return alert("Saare fields bharo bhai!");
+            if(!name || !email || !pass) return alert("Bhai saare inputs dalo!");
 
+            showLoader();
             auth.createUserWithEmailAndPassword(email, pass)
                 .then(cred => {
                     database.ref('profiles/' + cred.user.uid).set({ uid: cred.user.uid, name: name, email: email });
                     database.ref('leaderboard/' + cred.user.uid).set({ name: name, score: 0 });
                     currentUserName = name;
-                }).catch(err => alert(err.message));
+                }).catch(err => { alert(err.message); hideLoader(); });
         }
 
         function handleLogin() {
             const email = document.getElementById('loginEmail').value.trim();
             const pass = document.getElementById('loginPass').value.trim();
-            if(!email || !pass) return alert("Email/Password likho!");
-            auth.signInWithEmailAndPassword(email, pass).catch(err => alert(err.message));
+            if(!email || !pass) return alert("Fields fill karo!");
+            
+            showLoader();
+            auth.signInWithEmailAndPassword(email, pass).catch(err => { alert(err.message); hideLoader(); });
         }
 
         function handleLogout() { auth.signOut().then(() => location.reload()); }
@@ -173,7 +202,6 @@
         function launchDashboard() {
             showPage('dashboardPage');
             syncUsersAndLeaderboard();
-            listenInAppNotifications();
         }
 
         function switchDashboardTab(tab) {
@@ -194,7 +222,7 @@
                     const div = document.createElement('div');
                     div.className = "user-item";
                     div.onclick = () => launchChatShellWith(u.uid, u.name);
-                    div.innerHTML = `<div class="user-avatar">${u.name.charAt(0).toUpperCase()}</div><div><strong>${u.name}</strong></div>`;
+                    div.innerHTML = `<div class="user-avatar">${u.name.charAt(0).toUpperCase()}</div><div><strong>${u.name}</strong><div style="font-size:12px; color:#8696a0;">Tap to open chat box</div></div>`;
                     container.appendChild(div);
                 });
             });
@@ -221,13 +249,14 @@
             targetUid = uid;
             targetUserName = name;
             
-            // Inform Native code which chat window is actively open
             if(window.AndroidBridge && typeof window.AndroidBridge.updateActiveChatPartner === 'function') {
                 window.AndroidBridge.updateActiveChatPartner(targetUid);
             }
 
             document.getElementById('activeChatName').innerText = targetUserName;
             document.getElementById('activeChatAvatar').innerText = targetUserName.charAt(0).toUpperCase();
+            
+            showLoader();
             showPage('chatPage');
             streamMessages();
         }
@@ -237,7 +266,21 @@
             if(window.AndroidBridge && typeof window.AndroidBridge.updateActiveChatPartner === 'function') {
                 window.AndroidBridge.updateActiveChatPartner("");
             }
+            closeMediaPanel();
             showPage('dashboardPage');
+        }
+
+        // Helper to format human readable 12 hour time strings
+        function formatTime(timestamp) {
+            if(!timestamp) return "";
+            const date = new Date(timestamp);
+            let hours = date.getHours();
+            let minutes = date.getMinutes();
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12; 
+            minutes = minutes < 10 ? '0'+minutes : minutes;
+            return hours + ':' + minutes + ' ' + ampm;
         }
 
         function streamMessages() {
@@ -245,6 +288,12 @@
             database.ref('secure_chats/' + rid).off();
             const container = document.getElementById('messageStream');
             container.innerHTML = "";
+            
+            let isInitialDataLoaded = false;
+            database.ref('secure_chats/' + rid).once('value', () => {
+                isInitialDataLoaded = true;
+                hideLoader();
+            });
 
             database.ref('secure_chats/' + rid).on('child_added', snap => {
                 const m = snap.val();
@@ -252,59 +301,60 @@
                 const bubble = document.createElement('div');
                 bubble.className = `bubble ${isMe ? 'bubble-out' : 'bubble-in'}`;
                 
-                let html = m.text ? `<div>${m.text}</div>` : "";
-                if(m.mediaUrl) html += `<img src="${m.mediaUrl}" class="shared-img" onclick="window.open('${m.mediaUrl}')">`;
+                let contentBody = m.text ? `<div>${m.text}</div>` : "";
+                if(m.mediaUrl) {
+                    contentBody += `<img src="${m.mediaUrl}" class="shared-img" onclick="window.open('${m.mediaUrl}')" onerror="this.style.display='none'">`;
+                }
                 
-                bubble.innerHTML = html;
+                // Appending Timestamp & Double checkmark status indicator layout
+                const timeStr = formatTime(m.timestamp);
+                const tickHtml = isMe ? `<span class="tick-icon">✓✓</span>` : "";
+                
+                bubble.innerHTML = `
+                    ${contentBody}
+                    <div class="msg-meta">
+                        <span>${timeStr}</span>
+                        ${tickHtml}
+                    </div>
+                `;
+                
                 container.appendChild(bubble);
                 container.scrollTop = container.scrollHeight;
+                
+                if(!isInitialDataLoaded) { hideLoader(); }
             });
         }
 
-        function dispatchMessage(media = "") {
+        function openMediaPanel() { document.getElementById('mediaInputArea').style.display = 'flex'; }
+        function closeMediaPanel() {
+            document.getElementById('mediaInputArea').style.display = 'none';
+            document.getElementById('mediaUrlBox').value = "";
+        }
+
+        function dispatchMessage() {
             const input = document.getElementById('msgInput');
+            const mediaBox = document.getElementById('mediaUrlBox');
+            
             const txt = input.value.trim();
-            if(!txt && !media) return;
+            const mediaLink = mediaBox.value.trim();
+            
+            if(!txt && !mediaLink) return;
 
             database.ref('secure_chats/' + getRoomId()).push({
                 senderUid: currentUid,
                 senderName: currentUserName,
                 receiverUid: targetUid,
                 text: txt,
-                mediaUrl: media,
+                mediaUrl: mediaLink,
                 timestamp: firebase.database.ServerValue.TIMESTAMP
             });
+
             input.value = "";
-        }
-
-        function shareMediaLink() {
-            const url = prompt("Image direct URL link dalo:");
-            if (url && url.trim().startsWith('http')) dispatchMessage(url.trim());
-        }
-
-        // In-App Smart Handler: Runs only inside the foreground view when chat window is minimized or user is browsing chats
-        function listenInAppNotifications() {
-            database.ref('secure_chats').on('value', snapshot => {
-                if(!historySkipFlag) { historySkipFlag = true; return; }
-                const allRooms = snapshot.val() || {};
-                Object.keys(allRooms).forEach(roomId => {
-                    if (roomId.includes(currentUid)) {
-                        const cluster = allRooms[roomId];
-                        const lastKey = Object.keys(cluster).pop();
-                        const msg = cluster[lastKey];
-
-                        if (msg.senderUid !== currentUid && msg.receiverUid === currentUid) {
-                            // In-App trigger inside dashboard tabs only
-                            if (targetUid !== msg.senderUid) {
-                                console.log("New hidden message received from: " + msg.senderName);
-                            }
-                        }
-                    }
-                });
-            });
+            closeMediaPanel();
         }
 
         document.getElementById('msgInput').addEventListener('keydown', (e) => { if(e.key === 'Enter') dispatchMessage(); });
+        document.getElementById('mediaUrlBox').addEventListener('keydown', (e) => { if(e.key === 'Enter') dispatchMessage(); });
     </script>
 </body>
 </html>

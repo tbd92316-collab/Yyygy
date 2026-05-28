@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fast Chat Ultimate</title>
+    <title>Fast Chat Ultimate Pro</title>
     
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
@@ -16,9 +16,8 @@
         .page { display: none; height: 100vh; flex-direction: column; }
         .active-page { display: flex; }
 
-        /* Global UI Loader Screen Overlay */
-        #globalLoader { position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(17,27,33,0.85); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.3s; }
-        .spinner { width: 50px; height: 50px; border: 5px solid #2a3942; border-top: 5px solid #00a884; border-radius: 50%; animation: spin 1s linear infinite; }
+        #globalLoader { position: absolute; top:0; left:0; width:100%; height:100%; background: #111b21; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .spinner { width: 45px; height: 45px; border: 4px solid #2a3942; border-top: 4px solid #00a884; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
         .header { background-color: #202c33; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.5); }
@@ -35,48 +34,51 @@
 
         .list-viewport { flex: 1; overflow-y: auto; padding: 8px 0; }
         .user-item { display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid #222e35; cursor: pointer; }
-        .user-item:active { background-color: #2a3942; }
         .user-avatar { width: 45px; height: 45px; background: #005c4b; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px; margin-right: 14px; color: white; }
         
-        /* Message Stream Bubble Styles */
         .chat-stream { flex: 1; overflow-y: auto; padding: 16px; background-color: #0b141a; display: flex; flex-direction: column; gap: 8px; }
-        .bubble { max-width: 75%; padding: 8px 12px 6px 12px; border-radius: 8px; font-size: 15px; position: relative; word-wrap: break-word; line-height: 1.4; display: flex; flex-direction: column; }
+        .bubble { max-width: 75%; padding: 8px 12px 6px 12px; border-radius: 8px; font-size: 15px; position: relative; word-wrap: break-word; display: flex; flex-direction: column; }
         .bubble-in { background-color: #202c33; align-self: flex-start; border-top-left-radius: 0; }
         .bubble-out { background-color: #005c4b; align-self: flex-end; border-top-right-radius: 0; }
         
-        /* Timestamp and Ticks Layout */
-        .msg-meta { display: flex; align-items: center; justify-content: flex-end; gap: 4px; font-size: 11px; color: #8696a0; margin-top: 4px; align-self: flex-end; }
+        .msg-meta { display: flex; align-items: center; justify-content: flex-end; gap: 5px; font-size: 11px; color: #8696a0; margin-top: 4px; align-self: flex-end; }
         .bubble-out .msg-meta { color: #a4cbb4; }
-        .tick-icon { font-size: 12px; color: #53bdeb; }
+        
+        /* Dynamic Dual Tick Colors */
+        .tick-icon { font-size: 11px; margin-left: 2px; font-weight: bold; }
+        .tick-unread { color: #8696a0; }
+        .tick-read { color: #53bdeb; }
 
-        .shared-img { max-width: 100%; max-height: 220px; object-fit: cover; border-radius: 6px; margin-top: 2px; margin-bottom: 2px; display: block; }
+        .shared-img { max-width: 100%; max-height: 240px; object-fit: cover; border-radius: 6px; margin-top: 4px; display: block; background: #2a3942; }
 
         .action-row { background-color: #202c33; padding: 10px; display: flex; align-items: center; gap: 8px; }
         .back-btn { background: transparent; border: none; color: #8696a0; font-size: 20px; cursor: pointer; margin-right: 8px; }
+        
+        /* Styled File Picker overlay layout */
+        .file-label { background: #2a3942; color: white; padding: 12px; border-radius: 6px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; }
     </style>
 </head>
 <body>
 
     <div id="globalLoader">
         <div class="spinner"></div>
-        <p style="color:#8696a0; margin-top:14px; font-size:14px;">Connecting to Firebase Database...</p>
+        <p style="color:#00a884; margin-top:14px; font-weight:bold; font-size:14px;">Fast Chat Engines Booting...</p>
     </div>
 
     <div id="authPage" class="page">
         <div class="auth-container" id="loginBox">
             <h2 style="color:#00a884; margin-top:0;">Fast Chat Ultimate ⚡</h2>
-            <p style="color:#8696a0; font-size:14px; margin-bottom:20px;">Secure Account Login</p>
-            <input type="email" id="loginEmail" class="input-field" placeholder="Email address dalein...">
+            <input type="email" id="loginEmail" class="input-field" placeholder="Email address...">
             <input type="password" id="loginPass" class="input-field" placeholder="Password...">
             <button class="btn" onclick="handleLogin()">Login</button>
             <span class="toggle-link" onclick="toggleAuthForms(true)">Naya Account Banayein</span>
         </div>
 
         <div class="auth-container" id="registerBox" style="display:none;">
-            <h2 style="color:#00a884; margin-top:0;">Register Account 🔥</h2>
-            <input type="text" id="regName" class="input-field" placeholder="Apna Naam likho...">
-            <input type="email" id="regEmail" class="input-field" placeholder="Email address...">
-            <input type="password" id="regPass" class="input-field" placeholder="Password set karein...">
+            <h2 style="color:#00a884; margin-top:0;">Register Profile 🔥</h2>
+            <input type="text" id="regName" class="input-field" placeholder="Apna Naam...">
+            <input type="email" id="regEmail" class="input-field" placeholder="Email...">
+            <input type="password" id="regPass" class="input-field" placeholder="Password...">
             <button class="btn" onclick="handleRegister()">Register Now</button>
             <span class="toggle-link" onclick="toggleAuthForms(false)">Pehle se account hai? Login</span>
         </div>
@@ -84,8 +86,8 @@
 
     <div id="dashboardPage" class="page">
         <div class="header">
-            <div class="header-title">Fast Chat</div>
-            <button style="background:transparent; border:none; color:#ef4444; font-weight:bold; cursor:pointer;" onclick="handleLogout()">Logout</button>
+            <div class="header-title">Fast Chat HUD</div>
+            <button style="background:transparent; border:none; color:#ef4444; font-weight:bold;" onclick="handleLogout()">Logout</button>
         </div>
         <div class="tabs-header">
             <div id="tabUsers" class="tab-btn active-tab" onclick="switchDashboardTab('users')">CHATS</div>
@@ -100,25 +102,22 @@
             <div style="display:flex; align-items:center;">
                 <button class="back-btn" onclick="exitChatRoom()">✕</button>
                 <div class="user-avatar" id="activeChatAvatar" style="width:34px; height:34px; font-size:14px; margin-right:10px;">?</div>
-                <div class="header-title" id="activeChatName">Loading...</div>
+                <div class="header-title" id="activeChatName">Connecting...</div>
             </div>
         </div>
         <div class="chat-stream" id="messageStream"></div>
-        
-        <div id="mediaInputArea" style="background:#1f2c34; padding:6px 12px; display:none; align-items:center; gap:8px; border-bottom:1px solid #2a3942;">
-            <input type="text" id="mediaUrlBox" class="input-field" placeholder="Yahan direct image URL link paste karo..." style="margin:0; flex:1; font-size:13px; padding:8px;">
-            <button class="btn" style="width:auto; padding:8px 12px; background:#ef4444;" onclick="closeMediaPanel()">Cancel</button>
-        </div>
 
         <div class="action-row">
+            <input type="file" id="galleryPicker" accept="image/*" style="display:none;" onchange="processGalleryImage(this)">
+            <button class="file-label" onclick="document.getElementById('galleryPicker').click()">🖼️</button>
+            
             <input type="text" id="msgInput" class="input-field" placeholder="Type a message..." style="margin:0; flex:1;" autocomplete="off">
-            <button class="btn" style="width:auto; padding:12px; background:#2a3942;" onclick="openMediaPanel()">🖼️</button>
             <button class="btn" style="width:auto; padding:12px 18px;" onclick="dispatchMessage()">Send</button>
         </div>
     </div>
 
     <script>
-        // Project Firebase config initialization
+        // Realtime injected legacy credentials matrix
         const firebaseConfig = {
             apiKey: "AIzaSyAOsGkBI2QDkZAuogCEWsX2Eu3Q2jJYeCE",
             authDomain: "movi-hub.firebaseapp.com",
@@ -138,7 +137,6 @@
         let targetUid = "";
         let targetUserName = "";
 
-        // Manage loader lifecycle
         function showLoader() { document.getElementById('globalLoader').style.display = 'flex'; }
         function hideLoader() { document.getElementById('globalLoader').style.display = 'none'; }
 
@@ -147,9 +145,9 @@
             if (user) {
                 currentUid = user.uid;
                 database.ref('profiles/' + currentUid).once('value', snap => {
-                    const profile = snap.val();
-                    if(profile) {
-                        currentUserName = profile.name;
+                    const p = snap.val();
+                    if(p) {
+                        currentUserName = p.name;
                         if (window.AndroidBridge && typeof window.AndroidBridge.updateUserSession === 'function') {
                             window.AndroidBridge.updateUserSession(currentUid, currentUserName);
                         }
@@ -177,22 +175,18 @@
             const name = document.getElementById('regName').value.trim();
             const email = document.getElementById('regEmail').value.trim();
             const pass = document.getElementById('regPass').value.trim();
-            if(!name || !email || !pass) return alert("Bhai saare inputs dalo!");
-
+            if(!name || !email || !pass) return alert("Fill inputs!");
             showLoader();
-            auth.createUserWithEmailAndPassword(email, pass)
-                .then(cred => {
-                    database.ref('profiles/' + cred.user.uid).set({ uid: cred.user.uid, name: name, email: email });
-                    database.ref('leaderboard/' + cred.user.uid).set({ name: name, score: 0 });
-                    currentUserName = name;
-                }).catch(err => { alert(err.message); hideLoader(); });
+            auth.createUserWithEmailAndPassword(email, pass).then(cred => {
+                database.ref('profiles/' + cred.user.uid).set({ uid: cred.user.uid, name: name, email: email });
+                database.ref('leaderboard/' + cred.user.uid).set({ name: name, score: 0 });
+            }).catch(err => { alert(err.message); hideLoader(); });
         }
 
         function handleLogin() {
             const email = document.getElementById('loginEmail').value.trim();
             const pass = document.getElementById('loginPass').value.trim();
-            if(!email || !pass) return alert("Fields fill karo!");
-            
+            if(!email || !pass) return alert("Fill fields!");
             showLoader();
             auth.signInWithEmailAndPassword(email, pass).catch(err => { alert(err.message); hideLoader(); });
         }
@@ -222,7 +216,7 @@
                     const div = document.createElement('div');
                     div.className = "user-item";
                     div.onclick = () => launchChatShellWith(u.uid, u.name);
-                    div.innerHTML = `<div class="user-avatar">${u.name.charAt(0).toUpperCase()}</div><div><strong>${u.name}</strong><div style="font-size:12px; color:#8696a0;">Tap to open chat box</div></div>`;
+                    div.innerHTML = `<div class="user-avatar">${u.name.charAt(0).toUpperCase()}</div><div><strong>${u.name}</strong></div>`;
                     container.appendChild(div);
                 });
             });
@@ -266,21 +260,30 @@
             if(window.AndroidBridge && typeof window.AndroidBridge.updateActiveChatPartner === 'function') {
                 window.AndroidBridge.updateActiveChatPartner("");
             }
-            closeMediaPanel();
             showPage('dashboardPage');
         }
 
-        // Helper to format human readable 12 hour time strings
         function formatTime(timestamp) {
             if(!timestamp) return "";
             const date = new Date(timestamp);
             let hours = date.getHours();
             let minutes = date.getMinutes();
             const ampm = hours >= 12 ? 'PM' : 'AM';
-            hours = hours % 12;
-            hours = hours ? hours : 12; 
+            hours = hours % 12; hours = hours ? hours : 12; 
             minutes = minutes < 10 ? '0'+minutes : minutes;
             return hours + ':' + minutes + ' ' + ampm;
+        }
+
+        // Gallery Image binary converter handler
+        function processGalleryImage(input) {
+            if (input.files && input.files[0]) {
+                showLoader();
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    dispatchMessage("", e.target.result); // Injects converted base64 directly into database array packet
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
         }
 
         function streamMessages() {
@@ -289,29 +292,39 @@
             const container = document.getElementById('messageStream');
             container.innerHTML = "";
             
-            let isInitialDataLoaded = false;
-            database.ref('secure_chats/' + rid).once('value', () => {
-                isInitialDataLoaded = true;
-                hideLoader();
-            });
+            let initialLoadFlag = false;
+            database.ref('secure_chats/' + rid).once('value', () => { initialLoadFlag = true; hideLoader(); });
 
             database.ref('secure_chats/' + rid).on('child_added', snap => {
                 const m = snap.val();
+                const mKey = snap.key;
                 const isMe = m.senderUid === currentUid;
+                
+                // CRITICAL FIX: Mark message as read dynamically if open by receiver
+                if (!isMe && m.status !== 'read') {
+                    database.ref(`secure_chats/${rid}/${mKey}/status`).set('read');
+                }
+
                 const bubble = document.createElement('div');
                 bubble.className = `bubble ${isMe ? 'bubble-out' : 'bubble-in'}`;
                 
-                let contentBody = m.text ? `<div>${m.text}</div>` : "";
-                if(m.mediaUrl) {
-                    contentBody += `<img src="${m.mediaUrl}" class="shared-img" onclick="window.open('${m.mediaUrl}')" onerror="this.style.display='none'">`;
-                }
+                let content = m.text ? `<div>${m.text}</div>` : "";
+                if(m.mediaUrl) content += `<img src="${m.mediaUrl}" class="shared-img">`;
                 
-                // Appending Timestamp & Double checkmark status indicator layout
                 const timeStr = formatTime(m.timestamp);
-                const tickHtml = isMe ? `<span class="tick-icon">✓✓</span>` : "";
                 
+                // Tick Logic rendering block
+                let tickHtml = "";
+                if (isMe) {
+                    if (m.status === 'read') {
+                        tickHtml = `<span class="tick-icon tick-read">✓✓</span>`; // Double blue tick
+                    } else {
+                        tickHtml = `<span class="tick-icon tick-unread">✓</span>`; // Single gray tick
+                    }
+                }
+
                 bubble.innerHTML = `
-                    ${contentBody}
+                    ${content}
                     <div class="msg-meta">
                         <span>${timeStr}</span>
                         ${tickHtml}
@@ -320,41 +333,39 @@
                 
                 container.appendChild(bubble);
                 container.scrollTop = container.scrollHeight;
-                
-                if(!isInitialDataLoaded) { hideLoader(); }
+                if(!initialLoadFlag) hideLoader();
+            });
+
+            // Listen for structural state transformations (Updates gray tick to blue tick live)
+            database.ref('secure_chats/' + rid).on('child_changed', snap => {
+                const m = snap.val();
+                if(m.senderUid === currentUid) {
+                    streamMessages(); // Hot reload viewport tree elements instantly
+                }
             });
         }
 
-        function openMediaPanel() { document.getElementById('mediaInputArea').style.display = 'flex'; }
-        function closeMediaPanel() {
-            document.getElementById('mediaInputArea').style.display = 'none';
-            document.getElementById('mediaUrlBox').value = "";
-        }
-
-        function dispatchMessage() {
+        function dispatchMessage(textOverride = "", mediaOverride = "") {
             const input = document.getElementById('msgInput');
-            const mediaBox = document.getElementById('mediaUrlBox');
+            const txt = textOverride ? textOverride : input.value.trim();
             
-            const txt = input.value.trim();
-            const mediaLink = mediaBox.value.trim();
-            
-            if(!txt && !mediaLink) return;
+            if(!txt && !mediaOverride) return;
 
             database.ref('secure_chats/' + getRoomId()).push({
                 senderUid: currentUid,
                 senderName: currentUserName,
                 receiverUid: targetUid,
                 text: txt,
-                mediaUrl: mediaLink,
+                mediaUrl: mediaOverride,
+                status: "sent", // Base mapping initialization structure
                 timestamp: firebase.database.ServerValue.TIMESTAMP
             });
 
             input.value = "";
-            closeMediaPanel();
+            document.getElementById('galleryPicker').value = ""; // Flush pick node values
         }
 
         document.getElementById('msgInput').addEventListener('keydown', (e) => { if(e.key === 'Enter') dispatchMessage(); });
-        document.getElementById('mediaUrlBox').addEventListener('keydown', (e) => { if(e.key === 'Enter') dispatchMessage(); });
     </script>
 </body>
 </html>

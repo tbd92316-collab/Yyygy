@@ -20,6 +20,11 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
+    - name: Pre-Generate Local Android Debug Keystore
+      run: |
+        mkdir -p github_keystore
+        keytool -genkey -v -keystore github_keystore/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+
     - name: Setup Android Project Files
       run: |
         mkdir -p android/app/src/main/java/com/compiler/htmltoapk
@@ -380,7 +385,7 @@ jobs:
         include ':app'
         EOF
 
-        # 8. App-level build.gradle Setup (Forced Lint and Signing Bypass Block)
+        # 8. App-level build.gradle Setup (Forced Debug Keystore Relative Path Mapping)
         cat << 'EOF' > android/app/build.gradle
         plugins { id 'com.android.application' }
         android {
@@ -394,13 +399,16 @@ jobs:
                 versionName "3.0"
                 ndk { abiFilters "arm64-v8a", "armeabi-v7a" }
             }
-            lintOptions {
-                checkReleaseBuilds false
-                abortOnError false
+            signingConfigs {
+                debug {
+                    storeFile file("../../github_keystore/debug.keystore")
+                    storePassword "android"
+                    keyAlias "androiddebugkey"
+                    keyPassword "android"
+                }
             }
             buildTypes {
-                release {
-                    minifyEnabled false
+                debug {
                     signingConfig signingConfigs.debug
                 }
             }
@@ -428,13 +436,13 @@ jobs:
         gradle wrapper --gradle-version 8.2 --distribution-type bin
         chmod +x gradlew
 
-    - name: Compile and Generate Stable APK
+    - name: Compile and Generate APK
       run: |
         cd android
-        ./gradlew assembleRelease -x lint -x lintVitalRelease
+        ./gradlew assembleDebug
 
     - name: Upload Generated APK Artifact
       uses: actions/upload-artifact@v4
       with:
         name: Fast-Chat-Ultimate-APK
-        path: android/app/build/outputs/apk/release/app-release.apk
+        path: android/app/build/outputs/apk/debug/app-debug.apk

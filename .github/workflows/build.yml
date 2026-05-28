@@ -35,7 +35,7 @@ jobs:
         org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
         EOF
 
-        # 2. AndroidManifest.xml
+        # 2. AndroidManifest.xml (Battery Optimized Optimization API nodes)
         cat << 'EOF' > android/app/src/main/AndroidManifest.xml
         <manifest xmlns:android="http://schemas.android.com/apk/res/android">
             <uses-permission android:name="android.permission.INTERNET" />
@@ -43,28 +43,26 @@ jobs:
             <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
             <uses-permission android:name="android.permission.WAKE_LOCK" />
             <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-            <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-            <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+            <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
             
             <application 
                 android:allowBackup="true" 
-                android:label="Fast Chat Ultimate" 
+                android:label="Fast Chat Pro" 
                 android:icon="@mipmap/ic_launcher"
                 android:hardwareAccelerated="true"
                 android:usesCleartextTraffic="true"
                 android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
                 
-                <activity android:name="com.compiler.htmltoapk.MainActivity" android:exported="true">
+                <activity android:name="com.compiler.htmltoapk.MainActivity" 
+                    android:configChanges="orientation|screenSize"
+                    android:exported="true">
                     <intent-filter>
                         <action android:name="android.intent.action.MAIN" />
                         <category android:name="android.intent.category.LAUNCHER" />
                     </intent-filter>
                 </activity>
 
-                <service 
-                    android:name="com.compiler.htmltoapk.ChatSyncService"
-                    android:foregroundServiceType="dataSync"
-                    android:exported="false" />
+                <receiver android:name="com.compiler.htmltoapk.BackgroundSyncReceiver" android:exported="false" />
             </application>
         </manifest>
         EOF
@@ -77,27 +75,34 @@ jobs:
             android:layout_height="match_parent" />
         EOF
 
-        # 4. MainActivity.java
+        # 4. MainActivity.java (Handles Storage Inputs & OS Optimization Engine)
         cat << 'EOF' > android/app/src/main/java/com/compiler/htmltoapk/MainActivity.java
         package com.compiler.htmltoapk;
         
         import android.Manifest;
         import android.app.Activity;
+        import android.app.AlarmManager;
+        import android.app.PendingIntent;
         import android.content.Context;
         import android.content.Intent;
         import android.content.SharedPreferences;
+        import android.net.Uri;
         import android.os.Build;
         import android.os.Bundle;
-        import android.webkit.JavascriptInterface;
+        import android.webkit.ValueCallback;
+        import android.webkit.WebChromeClient;
         import android.webkit.WebSettings;
         import android.webkit.WebView;
         import android.webkit.WebViewClient;
+        import android.webkit.JavascriptInterface;
         import androidx.core.app.ActivityCompat;
 
         public class MainActivity extends Activity {
             private WebView webView;
             public static boolean isAppOpen = false;
             public static String activeChatPartnerUid = "";
+            private ValueCallback<Uri[]> uploadMessage;
+            private final static int FILECHOOSER_RESULTCODE = 1;
 
             @Override
             protected void onCreate(Bundle savedInstanceState) {
@@ -113,6 +118,21 @@ jobs:
                 webSettings.setAllowContentAccess(true);
                 
                 webView.setWebViewClient(new WebViewClient());
+                
+                // ChromeClient for direct Gallery storage selector intent hooks
+                webView.setWebChromeClient(new WebChromeClient() {
+                    @Override
+                    public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> filePathCallback, WebChromeClient.FileChooserParams fileChooserParams) {
+                        if (uploadMessage != null) { uploadMessage.onReceiveValue(null); }
+                        uploadMessage = filePathCallback;
+                        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+                        intent.addCategory(Intent.CATEGORY_OPENABLE);
+                        intent.setType("image/*");
+                        startActivityForResult(Intent.createChooser(intent, "Select Image from Gallery"), FILECHOOSER_RESULTCODE);
+                        return true;
+                    }
+                });
+
                 webView.addJavascriptInterface(new WebAppInterface(this), "AndroidBridge");
                 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -123,22 +143,25 @@ jobs:
             }
 
             @Override
-            protected void onResume() {
-                super.onResume();
-                isAppOpen = true;
+            protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+                if (requestCode == FILECHOOSER_RESULTCODE) {
+                    if (uploadMessage == null) return;
+                    Uri[] results = null;
+                    if (resultCode == Activity.RESULT_OK && data != null) {
+                        String dataString = data.getDataString();
+                        if (dataString != null) { results = new Uri[]{Uri.parse(dataString)}; }
+                    }
+                    uploadMessage.onReceiveValue(results);
+                    uploadMessage = null;
+                }
             }
 
             @Override
-            protected void onPause() {
-                super.onPause();
-                isAppOpen = false;
-            }
-
+            protected void onResume() { super.onResume(); isAppOpen = true; }
             @Override
-            protected void onDestroy() {
-                super.onDestroy();
-                isAppOpen = false;
-            }
+            protected void onPause() { super.onPause(); isAppOpen = false; }
+            @Override
+            protected void onDestroy() { super.onDestroy(); isAppOpen = false; }
 
             public class WebAppInterface {
                 Context mContext;
@@ -149,11 +172,13 @@ jobs:
                     SharedPreferences prefs = mContext.getSharedPreferences("FastChatPrefs", MODE_PRIVATE);
                     prefs.edit().putString("user_uid", uid).putString("user_name", name).apply();
                     
-                    Intent serviceIntent = new Intent(mContext, ChatSyncService.class);
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        mContext.startForegroundService(serviceIntent);
-                    } else {
-                        mContext.startService(serviceIntent);
+                    // Native Lightweight OS Scheduler setup instead of heavy battery killing threads
+                    AlarmManager alarmManager = (AlarmManager) mContext.getSystemService(Context.ALARM_SERVICE);
+                    Intent intent = new Intent(mContext, BackgroundSyncReceiver.class);
+                    PendingIntent pendingIntent = PendingIntent.getBroadcast(mContext, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+                    
+                    if (alarmManager != null) {
+                        alarmManager.setRepeating(AlarmManager.RTC_WAKEUP, System.currentTimeMillis(), 8000, pendingIntent);
                     }
                 }
 
@@ -165,28 +190,23 @@ jobs:
 
             @Override
             public void onBackPressed() {
-                if (webView != null && webView.canGoBack()) {
-                    webView.goBack();
-                } else {
-                    super.onBackPressed();
-                }
+                if (webView != null && webView.canGoBack()) { webView.goBack(); } else { super.onBackPressed(); }
             }
         }
         EOF
 
-        # 5. ChatSyncService.java (BUG FIX: Unique Message ID tracking algorithm implemented)
-        cat << 'EOF' > android/app/src/main/java/com/compiler/htmltoapk/ChatSyncService.java
+        # 5. BackgroundSyncReceiver.java (Optimized REST Parser Engine - NO KILL WARNING)
+        cat << 'EOF' > android/app/src/main/java/com/compiler/htmltoapk/BackgroundSyncReceiver.java
         package com.compiler.htmltoapk;
 
-        import android.app.Notification;
         import android.app.NotificationChannel;
         import android.app.NotificationManager;
-        import android.app.Service;
+        import android.content.BroadcastReceiver;
         import android.content.Context;
         import android.content.Intent;
         import android.content.SharedPreferences;
+        import android.media.RingtoneManager;
         import android.os.Build;
-        import android.os.IBinder;
         import androidx.core.app.NotificationCompat;
         import java.io.BufferedReader;
         import java.io.InputStreamReader;
@@ -194,146 +214,90 @@ jobs:
         import java.net.URL;
         import org.json.JSONObject;
         import java.util.Iterator;
-        import java.util.HashSet;
 
-        public class ChatSyncService extends Service {
-            private static final String CHANNEL_ID = "fast_chat_service_channel";
-            private static final String ALERT_CHANNEL_ID = "fast_chat_secure";
-            private boolean isRunning = false;
-            // HashSet to prevent previous message repetition bugs globally
-            private HashSet<String> notifiedMessageIds = new HashSet<>();
+        public class BackgroundSyncReceiver extends BroadcastReceiver {
+            private static final String ALERT_CHANNEL_ID = "fast_chat_secure_ultimate";
 
             @Override
-            public void onCreate() {
-                super.onCreate();
-                createNotificationChannels();
-                
-                Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
-                        .setContentTitle("Fast Chat Pro Core")
-                        .setContentText("Background server active...")
-                        .setSmallIcon(android.R.drawable.stat_notify_chat)
-                        .setPriority(NotificationCompat.PRIORITY_MIN)
-                        .build();
-                        
-                startForeground(1, notification);
-            }
+            public void onReceive(final Context context, Intent intent) {
+                if (MainActivity.isAppOpen) return; // Skip if app is currently visible
 
-            @Override
-            public int onStartCommand(Intent intent, int flags, int startId) {
-                if (!isRunning) {
-                    isRunning = true;
-                    startPollingThread();
-                }
-                return START_STICKY;
-            }
-
-            private void startPollingThread() {
                 new Thread(new Runnable() {
                     @Override
                     public void run() {
-                        boolean isFirstLoad = true;
-                        while (isRunning) {
-                            try {
-                                SharedPreferences prefs = getSharedPreferences("FastChatPrefs", MODE_PRIVATE);
-                                String myUid = prefs.getString("user_uid", "");
+                        try {
+                            SharedPreferences prefs = context.getSharedPreferences("FastChatPrefs", Context.MODE_PRIVATE);
+                            String myUid = prefs.getString("user_uid", "");
+                            String lastSeenMsgId = prefs.getString("last_seen_msg_id", "");
 
-                                if (!myUid.isEmpty()) {
-                                    URL url = new URL("https://movi-hub-default-rtdb.firebaseio.com/secure_chats.json");
-                                    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                                    conn.setRequestMethod("GET");
-                                    
-                                    BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                                    StringBuilder response = new StringBuilder();
-                                    String inputLine;
-                                    while ((inputLine = in.readLine()) != null) {
-                                        response.append(inputLine);
-                                    }
-                                    in.close();
+                            if (!myUid.isEmpty()) {
+                                URL url = new URL("https://movi-hub-default-rtdb.firebaseio.com/secure_chats.json");
+                                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                                conn.setRequestMethod("GET");
+                                conn.setConnectTimeout(3000);
+                                conn.setReadTimeout(3000);
+                                
+                                BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                                StringBuilder response = new StringBuilder();
+                                String inputLine;
+                                while ((inputLine = in.readLine()) != null) { response.append(inputLine); }
+                                in.close();
 
-                                    if (response.toString().equals("null")) {
-                                        Thread.sleep(4000);
-                                        continue;
-                                    }
+                                if (response.toString().equals("null")) return;
 
-                                    JSONObject allRooms = new JSONObject(response.toString());
-                                    Iterator<String> keys = allRooms.keys();
-                                    
-                                    while (keys.hasNext()) {
-                                        String roomId = keys.next();
-                                        if (roomId.contains(myUid)) {
-                                            JSONObject roomMessages = allRooms.getJSONObject(roomId);
-                                            Iterator<String> msgKeys = roomMessages.keys();
-                                            
-                                            while(msgKeys.hasNext()) {
-                                                String msgId = msgKeys.next();
-                                                
-                                                // Check if this explicit Message ID was already handled previously
-                                                if (!notifiedMessageIds.contains(msgId)) {
-                                                    JSONObject messageData = roomMessages.getJSONObject(msgId);
-                                                    String senderUid = messageData.getString("senderUid");
-                                                    String receiverUid = messageData.getString("receiverUid");
-                                                    String senderName = messageData.getString("senderName");
-                                                    String text = messageData.optString("text", "");
-                                                    String mediaUrl = messageData.optString("mediaUrl", "");
+                                JSONObject allRooms = new JSONObject(response.toString());
+                                Iterator<String> keys = allRooms.keys();
+                                
+                                while (keys.hasNext()) {
+                                    String roomId = keys.next();
+                                    if (roomId.contains(myUid)) {
+                                        JSONObject roomMessages = allRooms.getJSONObject(roomId);
+                                        Iterator<String> msgKeys = roomMessages.keys();
+                                        String lastMsgId = "";
+                                        while(msgKeys.hasNext()) { lastMsgId = msgKeys.next(); }
+                                        
+                                        if (!lastMsgId.isEmpty() && !lastMsgId.equals(lastSeenMsgId)) {
+                                            JSONObject messageData = roomMessages.getJSONObject(lastMsgId);
+                                            String senderUid = messageData.getString("senderUid");
+                                            String receiverUid = messageData.getString("receiverUid");
+                                            String senderName = messageData.getString("senderName");
+                                            String text = messageData.optString("text", "");
+                                            String status = messageData.optString("status", "sent");
 
-                                                    // Track it immediately to block future iterations
-                                                    notifiedMessageIds.add(msgId);
-
-                                                    // Avoid throwing history popups upon fresh app boot initialization
-                                                    if (!isFirstLoad && !senderUid.equals(myUid) && receiverUid.equals(myUid)) {
-                                                        if (!MainActivity.isAppOpen || !MainActivity.activeChatPartnerUid.equals(senderUid)) {
-                                                            triggerPopupAlert(senderName, mediaUrl.isEmpty() ? text : "🖼️ Image Attachment");
-                                                        }
-                                                    }
-                                                }
+                                            if (!senderUid.equals(myUid) && receiverUid.equals(myUid) && !status.equals("read")) {
+                                                prefs.edit().putString("last_seen_msg_id", lastMsgId).apply();
+                                                triggerSystemAlert(context, senderName, text.isEmpty() ? "🖼️ Shared an Image Gallery item" : text);
                                             }
                                         }
                                     }
-                                    isFirstLoad = false; // Grace period ends after processing pre-existing tree entries
                                 }
-                                Thread.sleep(3500); 
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                                try { Thread.sleep(5000); } catch (Exception ignored) {}
                             }
-                        }
+                        } catch (Exception e) { e.printStackTrace(); }
                     }
                 }).start();
             }
 
-            private void triggerPopupAlert(String title, String body) {
-                NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-                NotificationCompat.Builder builder = new NotificationCompat.Builder(this, ALERT_CHANNEL_ID)
+            private void triggerSystemAlert(Context ctx, String title, String body) {
+                NotificationManager manager = (NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
+                if (manager == null) return;
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    NotificationChannel alertChannel = new NotificationChannel(ALERT_CHANNEL_ID, "Chat High Alerts", NotificationManager.IMPORTANCE_HIGH);
+                    alertChannel.enableLights(true);
+                    alertChannel.enableVibration(true);
+                    manager.createNotificationChannel(alertChannel);
+                }
+
+                NotificationCompat.Builder builder = new NotificationCompat.Builder(ctx, ALERT_CHANNEL_ID)
                         .setSmallIcon(android.R.drawable.stat_notify_chat)
                         .setContentTitle(title)
                         .setContentText(body)
                         .setPriority(NotificationCompat.PRIORITY_HIGH)
+                        .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)) // Native Custom Audio Alert Sound hook
                         .setDefaults(NotificationCompat.DEFAULT_ALL)
                         .setAutoCancel(true);
-                if (manager != null) {
-                    manager.notify((int) System.currentTimeMillis(), builder.build());
-                }
-            }
 
-            private void createNotificationChannels() {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    NotificationChannel serviceChannel = new NotificationChannel(CHANNEL_ID, "Sync Monitoring", NotificationManager.IMPORTANCE_MIN);
-                    NotificationChannel alertChannel = new NotificationChannel(ALERT_CHANNEL_ID, "Secure Chat Alerts", NotificationManager.IMPORTANCE_HIGH);
-                    NotificationManager manager = getSystemService(NotificationManager.class);
-                    if (manager != null) {
-                        manager.createNotificationChannel(serviceChannel);
-                        manager.createNotificationChannel(alertChannel);
-                    }
-                }
-            }
-
-            @Override
-            public IBinder onBind(Intent intent) { return null; }
-
-            @Override
-            public void onDestroy() {
-                isRunning = false;
-                super.onDestroy();
+                manager.notify((int) System.currentTimeMillis(), builder.build());
             }
         }
         EOF
@@ -363,7 +327,7 @@ jobs:
                 minSdk 24
                 targetSdk 34
                 versionCode 1
-                versionName "1.0"
+                versionName "2.0"
                 ndk { abiFilters "arm64-v8a", "armeabi-v7a" }
             }
         }

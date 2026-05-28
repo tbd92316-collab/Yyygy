@@ -3,121 +3,119 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fast Chat Ultimate Pro</title>
-    
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    <title>Fast Chat Pro & WebRTC Video</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     
     <style>
-        * { box-sizing: border-box; font-family: 'Segoe UI', Arial, sans-serif; }
-        body { background-color: #111b21; margin: 0; color: #e9edef; height: 100vh; display: flex; flex-direction: column; position: relative; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
+        body { background: #11141a; color: #fff; display: flex; flex-direction: column; height: 100vh; }
         
-        .page { display: none; height: 100vh; flex-direction: column; }
-        .active-page { display: flex; }
-
-        #globalLoader { position: absolute; top:0; left:0; width:100%; height:100%; background: #111b21; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .spinner { width: 45px; height: 45px; border: 4px solid #2a3942; border-top: 4px solid #00a884; border-radius: 50%; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-        .header { background-color: #202c33; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.5); }
-        .header-title { font-size: 18px; font-weight: bold; color: #e9edef; }
+        /* Main Chat Layout */
+        #app-container { display: flex; flex-direction: column; height: 100%; width: 100%; position: relative; }
+        header { background: #1f2430; padding: 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2d3446; }
+        .user-info { display: flex; flex-direction: column; }
+        .call-btn { background: #2ecc71; border: none; padding: 8px 15px; color: white; font-weight: bold; border-radius: 5px; cursor: pointer; }
         
-        .auth-container { margin: auto; padding: 24px; background: #222e35; border-radius: 12px; width: 90%; max-width: 360px; text-align: center; }
-        .input-field { width: 100%; padding: 12px; background: #2a3942; border: none; color: white; border-radius: 6px; margin-bottom: 12px; outline: none; }
-        .btn { background: #00a884; color: white; border: none; padding: 12px; width: 100%; border-radius: 6px; font-weight: bold; cursor: pointer; }
-        .toggle-link { color: #34b7f1; font-size: 13px; margin-top: 14px; display: inline-block; cursor: pointer; }
-
-        .tabs-header { display: flex; background: #202c33; border-bottom: 1px solid #2a3942; }
-        .tab-btn { flex: 1; padding: 12px; background: transparent; border: none; color: #8696a0; font-weight: bold; cursor: pointer; text-align: center; }
-        .active-tab { color: #00a884; border-bottom: 3px solid #00a884; }
-
-        .list-viewport { flex: 1; overflow-y: auto; padding: 8px 0; }
-        .user-item { display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid #222e35; cursor: pointer; }
-        .user-avatar { width: 45px; height: 45px; background: #005c4b; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px; margin-right: 14px; color: white; }
+        #chat-box { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: #161a23; }
+        .msg { max-width: 75%; padding: 10px 14px; border-radius: 12px; position: relative; line-height: 1.4; word-wrap: break-word; }
+        .msg.sent { background: #0084ff; align-self: flex-end; border-bottom-right-radius: 2px; }
+        .msg.received { background: #2d3446; align-self: flex-start; border-bottom-left-radius: 2px; }
         
-        .chat-stream { flex: 1; overflow-y: auto; padding: 16px; background-color: #0b141a; display: flex; flex-direction: column; gap: 8px; }
-        .bubble { max-width: 75%; padding: 8px 12px 6px 12px; border-radius: 8px; font-size: 15px; position: relative; word-wrap: break-word; display: flex; flex-direction: column; }
-        .bubble-in { background-color: #202c33; align-self: flex-start; border-top-left-radius: 0; }
-        .bubble-out { background-color: #005c4b; align-self: flex-end; border-top-right-radius: 0; }
-        
-        .msg-meta { display: flex; align-items: center; justify-content: flex-end; gap: 5px; font-size: 11px; color: #8696a0; margin-top: 4px; align-self: flex-end; }
-        .bubble-out .msg-meta { color: #a4cbb4; }
-        
-        /* Dynamic Dual Tick Colors */
-        .tick-icon { font-size: 11px; margin-left: 2px; font-weight: bold; }
-        .tick-unread { color: #8696a0; }
-        .tick-read { color: #53bdeb; }
+        /* Ticks UI elements */
+        .meta-container { display: flex; justify-content: flex-end; align-items: center; gap: 4px; font-size: 11px; color: rgba(255,255,255,0.6); margin-top: 4px; }
+        .tick { font-weight: bold; font-size: 12px; }
+        .tick.blue { color: #00e676; } /* Single/Double Tick color logic */
 
-        .shared-img { max-width: 100%; max-height: 240px; object-fit: cover; border-radius: 6px; margin-top: 4px; display: block; background: #2a3942; }
+        #input-area { background: #1f2430; padding: 10px; display: flex; gap: 10px; align-items: center; }
+        #input-area input { flex: 1; padding: 12px; border-radius: 20px; border: none; background: #2d3446; color: white; outline: none; }
+        #input-area button { background: #0084ff; border: none; width: 45px; height: 45px; border-radius: 50%; color: white; font-weight: bold; cursor: pointer; }
 
-        .action-row { background-color: #202c33; padding: 10px; display: flex; align-items: center; gap: 8px; }
-        .back-btn { background: transparent; border: none; color: #8696a0; font-size: 20px; cursor: pointer; margin-right: 8px; }
-        
-        /* Styled File Picker overlay layout */
-        .file-label { background: #2a3942; color: white; padding: 12px; border-radius: 6px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; }
+        /* ==================== WebRTC VIDEO CALL FULLSCREEN OVERLAY ==================== */
+        #video-call-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: #000; display: none; flex-direction: column; z-index: 9999;
+        }
+        .video-container { flex: 1; position: relative; width: 100%; height: 100%; }
+        /* Remote View Fullscreen */
+        #remote-video { width: 100%; height: 100%; object-fit: cover; background: #222; }
+        /* Local View Thumbnail Float */
+        #local-video {
+            position: absolute; top: 20px; right: 20px; width: 120px; height: 160px;
+            object-fit: cover; border-radius: 8px; border: 2px solid white; background: #333; z-index: 10;
+        }
+        .call-controls {
+            position: absolute; bottom: 40px; left: 0; width: 100%;
+            display: flex; justify-content: center; gap: 30px; z-index: 20;
+        }
+        .end-call-btn {
+            background: #e74c3c; border: none; width: 60px; height: 60px;
+            border-radius: 50%; color: white; font-weight: bold; font-size: 20px; cursor: pointer;
+        }
+        .call-status-banner {
+            position: absolute; top: 40px; left: 0; width: 100%; text-align: center;
+            font-size: 18px; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.8); z-index: 20;
+        }
+
+        /* In-App Call Alert Modal Dialogue */
+        #inapp-call-popup {
+            position: fixed; top: 20px; left: 5%; width: 90%; background: #1e272e;
+            border-radius: 12px; padding: 15px; display: none; align-items: center;
+            justify-content: space-between; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            border: 2px solid #2ecc71; z-index: 10000; animation: slideDown 0.3s ease;
+        }
+        @keyframes slideDown { from { top: -100px; } to { top: 20px; } }
+        .popup-actions { display: flex; gap: 10px; }
+        .btn-action { padding: 8px 16px; border: none; border-radius: 6px; font-weight: bold; color: white; cursor: pointer; }
+        .btn-action.ans { background: #2ecc71; }
+        .btn-action.dec { background: #e74c3c; }
     </style>
 </head>
 <body>
 
-    <div id="globalLoader">
-        <div class="spinner"></div>
-        <p style="color:#00a884; margin-top:14px; font-weight:bold; font-size:14px;">Fast Chat Engines Booting...</p>
-    </div>
-
-    <div id="authPage" class="page">
-        <div class="auth-container" id="loginBox">
-            <h2 style="color:#00a884; margin-top:0;">Fast Chat Ultimate ⚡</h2>
-            <input type="email" id="loginEmail" class="input-field" placeholder="Email address...">
-            <input type="password" id="loginPass" class="input-field" placeholder="Password...">
-            <button class="btn" onclick="handleLogin()">Login</button>
-            <span class="toggle-link" onclick="toggleAuthForms(true)">Naya Account Banayein</span>
-        </div>
-
-        <div class="auth-container" id="registerBox" style="display:none;">
-            <h2 style="color:#00a884; margin-top:0;">Register Profile 🔥</h2>
-            <input type="text" id="regName" class="input-field" placeholder="Apna Naam...">
-            <input type="email" id="regEmail" class="input-field" placeholder="Email...">
-            <input type="password" id="regPass" class="input-field" placeholder="Password...">
-            <button class="btn" onclick="handleRegister()">Register Now</button>
-            <span class="toggle-link" onclick="toggleAuthForms(false)">Pehle se account hai? Login</span>
-        </div>
-    </div>
-
-    <div id="dashboardPage" class="page">
-        <div class="header">
-            <div class="header-title">Fast Chat HUD</div>
-            <button style="background:transparent; border:none; color:#ef4444; font-weight:bold;" onclick="handleLogout()">Logout</button>
-        </div>
-        <div class="tabs-header">
-            <div id="tabUsers" class="tab-btn active-tab" onclick="switchDashboardTab('users')">CHATS</div>
-            <div id="tabLeaderboard" class="tab-btn" onclick="switchDashboardTab('leaderboard')">LEADERBOARD 🏆</div>
-        </div>
-        <div id="usersListSection" class="list-viewport"></div>
-        <div id="leaderboardSection" class="list-viewport" style="display:none;"></div>
-    </div>
-
-    <div id="chatPage" class="page">
-        <div class="header">
-            <div style="display:flex; align-items:center;">
-                <button class="back-btn" onclick="exitChatRoom()">✕</button>
-                <div class="user-avatar" id="activeChatAvatar" style="width:34px; height:34px; font-size:14px; margin-right:10px;">?</div>
-                <div class="header-title" id="activeChatName">Connecting...</div>
+    <div id="app-container">
+        <header>
+            <div class="user-info">
+                <h3 id="partner-title">Loading Active Partner...</h3>
+                <small id="connection-status">Realtime Sync Active</small>
             </div>
-        </div>
-        <div class="chat-stream" id="messageStream"></div>
+            <button class="call-btn" onclick="startOutboundVideoCall()">📞 Video Call</button>
+        </header>
 
-        <div class="action-row">
-            <input type="file" id="galleryPicker" accept="image/*" style="display:none;" onchange="processGalleryImage(this)">
-            <button class="file-label" onclick="document.getElementById('galleryPicker').click()">🖼️</button>
-            
-            <input type="text" id="msgInput" class="input-field" placeholder="Type a message..." style="margin:0; flex:1;" autocomplete="off">
-            <button class="btn" style="width:auto; padding:12px 18px;" onclick="dispatchMessage()">Send</button>
+        <div id="chat-box"></div>
+
+        <div id="input-area">
+            <input type="text" id="msg-input" placeholder="Type a secure message...">
+            <button onclick="triggerTextMessageSend()">➔</button>
         </div>
     </div>
+
+    <div id="video-call-overlay">
+        <div class="call-status-banner" id="call-status-text">Connecting WebRTC Streams...</div>
+        <div class="video-container">
+            <video id="remote-video" autoplay playsinline></video>
+            <video id="local-video" autoplay playsinline muted></video>
+        </div>
+        <div class="call-controls">
+            <button class="end-call-btn" onclick="hangupCurrentCall()">Hangup</button>
+        </div>
+    </div>
+
+    <div id="inapp-call-popup">
+        <div>
+            <h4 id="popup-caller-name">Incoming Video Call</h4>
+            <p style="font-size: 12px; color: #aaa;">Fast Chat Realtime Request</p>
+        </div>
+        <div class="popup-actions">
+            <button class="btn-action ans" id="popup-ans-btn">Answer</button>
+            <button class="btn-action dec" id="popup-dec-btn">Decline</button>
+        </div>
+    </div>
+
+    <audio id="ringtone-player" loop src="https://assets.mixkit.co/active_storage/sfx/1359/1359-84.wav" preload="auto"></audio>
 
     <script>
-        // Realtime injected legacy credentials matrix
+        // 1. Firebase Core Initialization Configurations
         const firebaseConfig = {
             apiKey: "AIzaSyAOsGkBI2QDkZAuogCEWsX2Eu3Q2jJYeCE",
             authDomain: "movi-hub.firebaseapp.com",
@@ -125,247 +123,294 @@
             projectId: "movi-hub",
             storageBucket: "movi-hub.firebasestorage.app",
             messagingSenderId: "15875013349",
-            appId: "1:15875013349:web:ab65915c3bd575772ab20c",
-            measurementId: "G-PXR9TD2863"
+            appId: "1:15875013349:web:ab65915c3bd575772ab20c"
         };
         firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
         const database = firebase.database();
 
-        let currentUid = "";
-        let currentUserName = "";
-        let targetUid = "";
-        let targetUserName = "";
+        // Session Mock Configuration Variables
+        let myUid = "USER_A_UID";     // Dynamic: Android Bridge sets actual user session inside app setup
+        let myName = "Akash Developer";
+        let partnerUid = "USER_B_UID"; // Opponent session key mapping targeted data paths
+        let currentRoomId = "";
 
-        function showLoader() { document.getElementById('globalLoader').style.display = 'flex'; }
-        function hideLoader() { document.getElementById('globalLoader').style.display = 'none'; }
+        // WebRTC Global Engines Configurations
+        let localStream = null;
+        let remoteStream = null;
+        let peerConnection = null;
+        const rtcIceServers = { iceServers: [{ urls: ["stun:stun.l.google.com:19302", "stun:stun2.l.google.com:19302"] }] };
 
-        auth.onAuthStateChanged(user => {
-            showLoader();
-            if (user) {
-                currentUid = user.uid;
-                database.ref('profiles/' + currentUid).once('value', snap => {
-                    const p = snap.val();
-                    if(p) {
-                        currentUserName = p.name;
-                        if (window.AndroidBridge && typeof window.AndroidBridge.updateUserSession === 'function') {
-                            window.AndroidBridge.updateUserSession(currentUid, currentUserName);
-                        }
-                        launchDashboard();
+        // Fetch Android Device Bridge metadata sessions hooks
+        if (typeof localStorage !== "undefined") {
+            if (localStorage.getItem("myUid")) myUid = localStorage.getItem("myUid");
+            if (localStorage.getItem("partnerUid")) partnerUid = localStorage.getItem("partnerUid");
+        }
+
+        // Bridge setup fallback update endpoints
+        document.getElementById('partner-title').innerText = "Chat with " + partnerUid;
+        if(window.AndroidBridge) {
+            window.AndroidBridge.updateUserSession(myUid, myName);
+            window.AndroidBridge.updateActiveChatPartner(partnerUid);
+        }
+
+        // ==================== 💬 MESSAGING CHAT & LOGIC (SINGLE / DOUBLE TICK) ====================
+        
+        function triggerTextMessageSend() {
+            const inputField = document.getElementById("msg-input");
+            const rawMessageText = inputField.value.trim();
+            if (!rawMessageText) return;
+
+            const messageNodePayload = {
+                senderUid: myUid,
+                receiverUid: partnerUid,
+                senderName: myName,
+                text: rawMessageText,
+                timestamp: new Date().getTime(),
+                status: "sent" // Always 'sent' (Single Tick) initially on dispatch pipeline
+            };
+
+            database.ref('secure_chats').push(messageNodePayload);
+            inputField.value = "";
+        }
+
+        // Realtime Data Pipeline Listener
+        database.ref('secure_chats').on('child_added', (snapshot) => {
+            const msg = snapshot.val();
+            const msgKey = snapshot.key;
+
+            // Handle Ticket System Transformations
+            if (msg.receiverUid === myUid && msg.status === "sent") {
+                // If user is actively reading this conversation chat box frame, switch immediately to read state
+                database.ref('secure_chats/' + msgKey).update({ status: "read" });
+            } else if (msg.receiverUid === myUid && msg.status === "delivered") {
+                database.ref('secure_chats/' + msgKey).update({ status: "read" });
+            }
+
+            renderMessageToUi(msg);
+        });
+
+        // Watch modifications for status tracking transformations updates
+        database.ref('secure_chats').on('child_changed', (snapshot) => {
+            const updatedMsg = snapshot.val();
+            const msgDomElement = document.getElementById("msg-" + updatedMsg.timestamp);
+            if (msgDomElement) {
+                const tickContainer = msgDomElement.querySelector(".tick");
+                if (tickContainer) {
+                    if (updatedMsg.status === "delivered") {
+                        tickContainer.innerText = "✓✓";
+                        tickContainer.className = "tick";
+                    } else if (updatedMsg.status === "read") {
+                        tickContainer.innerText = "✓✓";
+                        tickContainer.className = "tick blue";
                     }
-                    hideLoader();
-                });
-            } else {
-                showPage('authPage');
-                hideLoader();
+                }
             }
         });
 
-        function toggleAuthForms(showRegister) {
-            document.getElementById('loginBox').style.display = showRegister ? 'none' : 'block';
-            document.getElementById('registerBox').style.display = showRegister ? 'block' : 'none';
-        }
-
-        function showPage(pageId) {
-            document.querySelectorAll('.page').forEach(p => p.classList.remove('active-page'));
-            document.getElementById(pageId).classList.add('active-page');
-        }
-
-        function handleRegister() {
-            const name = document.getElementById('regName').value.trim();
-            const email = document.getElementById('regEmail').value.trim();
-            const pass = document.getElementById('regPass').value.trim();
-            if(!name || !email || !pass) return alert("Fill inputs!");
-            showLoader();
-            auth.createUserWithEmailAndPassword(email, pass).then(cred => {
-                database.ref('profiles/' + cred.user.uid).set({ uid: cred.user.uid, name: name, email: email });
-                database.ref('leaderboard/' + cred.user.uid).set({ name: name, score: 0 });
-            }).catch(err => { alert(err.message); hideLoader(); });
-        }
-
-        function handleLogin() {
-            const email = document.getElementById('loginEmail').value.trim();
-            const pass = document.getElementById('loginPass').value.trim();
-            if(!email || !pass) return alert("Fill fields!");
-            showLoader();
-            auth.signInWithEmailAndPassword(email, pass).catch(err => { alert(err.message); hideLoader(); });
-        }
-
-        function handleLogout() { auth.signOut().then(() => location.reload()); }
-
-        function launchDashboard() {
-            showPage('dashboardPage');
-            syncUsersAndLeaderboard();
-        }
-
-        function switchDashboardTab(tab) {
-            document.getElementById('tabUsers').classList.toggle('active-tab', tab === 'users');
-            document.getElementById('tabLeaderboard').classList.toggle('active-tab', tab === 'leaderboard');
-            document.getElementById('usersListSection').style.display = tab === 'users' ? 'block' : 'none';
-            document.getElementById('leaderboardSection').style.display = tab === 'leaderboard' ? 'block' : 'none';
-        }
-
-        function syncUsersAndLeaderboard() {
-            database.ref('profiles').on('value', snap => {
-                const container = document.getElementById('usersListSection');
-                container.innerHTML = "";
-                const data = snap.val() || {};
-                Object.keys(data).forEach(uid => {
-                    if (uid === currentUid) return;
-                    const u = data[uid];
-                    const div = document.createElement('div');
-                    div.className = "user-item";
-                    div.onclick = () => launchChatShellWith(u.uid, u.name);
-                    div.innerHTML = `<div class="user-avatar">${u.name.charAt(0).toUpperCase()}</div><div><strong>${u.name}</strong></div>`;
-                    container.appendChild(div);
-                });
-            });
-
-            database.ref('leaderboard').on('value', snap => {
-                const container = document.getElementById('leaderboardSection');
-                container.innerHTML = "";
-                const data = snap.val() || {};
-                let rank = 1;
-                Object.keys(data).forEach(uid => {
-                    const e = data[uid];
-                    const div = document.createElement('div');
-                    div.className = "user-item";
-                    div.innerHTML = `<div style='color:#00a884; font-weight:bold; margin-right:15px;'>#${rank}</div><strong>${e.name}</strong>`;
-                    container.appendChild(div);
-                    rank++;
-                });
-            });
-        }
-
-        function getRoomId() { return currentUid < targetUid ? `${currentUid}_${targetUid}` : `${targetUid}_${currentUid}`; }
-
-        function launchChatShellWith(uid, name) {
-            targetUid = uid;
-            targetUserName = name;
+        function renderMessageToUi(msg) {
+            const chatBox = document.getElementById("chat-box");
+            const isMe = msg.senderUid === myUid;
             
-            if(window.AndroidBridge && typeof window.AndroidBridge.updateActiveChatPartner === 'function') {
-                window.AndroidBridge.updateActiveChatPartner(targetUid);
-            }
-
-            document.getElementById('activeChatName').innerText = targetUserName;
-            document.getElementById('activeChatAvatar').innerText = targetUserName.charAt(0).toUpperCase();
-            
-            showLoader();
-            showPage('chatPage');
-            streamMessages();
-        }
-
-        function exitChatRoom() {
-            targetUid = "";
-            if(window.AndroidBridge && typeof window.AndroidBridge.updateActiveChatPartner === 'function') {
-                window.AndroidBridge.updateActiveChatPartner("");
-            }
-            showPage('dashboardPage');
-        }
-
-        function formatTime(timestamp) {
-            if(!timestamp) return "";
-            const date = new Date(timestamp);
-            let hours = date.getHours();
-            let minutes = date.getMinutes();
-            const ampm = hours >= 12 ? 'PM' : 'AM';
-            hours = hours % 12; hours = hours ? hours : 12; 
-            minutes = minutes < 10 ? '0'+minutes : minutes;
-            return hours + ':' + minutes + ' ' + ampm;
-        }
-
-        // Gallery Image binary converter handler
-        function processGalleryImage(input) {
-            if (input.files && input.files[0]) {
-                showLoader();
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    dispatchMessage("", e.target.result); // Injects converted base64 directly into database array packet
-                };
-                reader.readAsDataURL(input.files[0]);
-            }
-        }
-
-        function streamMessages() {
-            const rid = getRoomId();
-            database.ref('secure_chats/' + rid).off();
-            const container = document.getElementById('messageStream');
-            container.innerHTML = "";
-            
-            let initialLoadFlag = false;
-            database.ref('secure_chats/' + rid).once('value', () => { initialLoadFlag = true; hideLoader(); });
-
-            database.ref('secure_chats/' + rid).on('child_added', snap => {
-                const m = snap.val();
-                const mKey = snap.key;
-                const isMe = m.senderUid === currentUid;
-                
-                // CRITICAL FIX: Mark message as read dynamically if open by receiver
-                if (!isMe && m.status !== 'read') {
-                    database.ref(`secure_chats/${rid}/${mKey}/status`).set('read');
-                }
-
-                const bubble = document.createElement('div');
-                bubble.className = `bubble ${isMe ? 'bubble-out' : 'bubble-in'}`;
-                
-                let content = m.text ? `<div>${m.text}</div>` : "";
-                if(m.mediaUrl) content += `<img src="${m.mediaUrl}" class="shared-img">`;
-                
-                const timeStr = formatTime(m.timestamp);
-                
-                // Tick Logic rendering block
-                let tickHtml = "";
+            // Filter target streams mappings checks logic
+            if ((msg.senderUid === myUid && msg.receiverUid === partnerUid) || (msg.senderUid === partnerUid && msg.receiverUid === myUid)) {
+                let tickIconHtml = "";
                 if (isMe) {
-                    if (m.status === 'read') {
-                        tickHtml = `<span class="tick-icon tick-read">✓✓</span>`; // Double blue tick
-                    } else {
-                        tickHtml = `<span class="tick-icon tick-unread">✓</span>`; // Single gray tick
-                    }
+                    let tickDesign = "✓";
+                    let classConfig = "tick";
+                    if (msg.status === "delivered") { tickDesign = "✓✓"; }
+                    if (msg.status === "read") { tickDesign = "✓✓"; classConfig = "tick blue"; }
+                    tickIconHtml = `<span class="${classConfig}">${tickDesign}</span>`;
                 }
 
-                bubble.innerHTML = `
-                    ${content}
-                    <div class="msg-meta">
-                        <span>${timeStr}</span>
-                        ${tickHtml}
+                const bubbleLayout = `
+                    <div class="msg ${isMe ? 'sent' : 'received'}" id="msg-${msg.timestamp}">
+                        <div>${msg.text}</div>
+                        <div class="meta-container">
+                            ${tickIconHtml}
+                        </div>
                     </div>
                 `;
-                
-                container.appendChild(bubble);
-                container.scrollTop = container.scrollHeight;
-                if(!initialLoadFlag) hideLoader();
-            });
+                chatBox.innerHTML += bubbleLayout;
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+        }
 
-            // Listen for structural state transformations (Updates gray tick to blue tick live)
-            database.ref('secure_chats/' + rid).on('child_changed', snap => {
-                const m = snap.val();
-                if(m.senderUid === currentUid) {
-                    streamMessages(); // Hot reload viewport tree elements instantly
+
+        // ==================== 🎥 WebRTC OUTBOUND VIDEO CALL PIPELINE (CALLER) ====================
+
+        async function startOutboundVideoCall() {
+            currentRoomId = myUid + "_" + partnerUid + "_" + Math.floor(Math.random() * 100000);
+            document.getElementById("call-status-text").innerText = "Ringing Opponent...";
+            document.getElementById("video-call-overlay").style.display = "flex";
+
+            // Initialize Local Hardware Camera Capture Streams Engine
+            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            document.getElementById("local-video").srcObject = localStream;
+
+            // Push Signal Frame Structure Setup to Database
+            const callSignalData = {
+                callType: "video",
+                receiverUid: partnerUid,
+                callerName: myName,
+                roomId: currentRoomId,
+                callStatus: "pending",
+                timestamp: new Date().getTime().toString()
+            };
+
+            database.ref('secure_chats_calls/' + currentRoomId).set(callSignalData);
+            
+            // Listen for acceptance response changes loops on signal frame nodes
+            database.ref('secure_chats_calls/' + currentRoomId).on('value', (snapshot) => {
+                const callInfo = snapshot.val();
+                if (!callInfo) return;
+
+                if (callInfo.callStatus === "accepted") {
+                    document.getElementById("call-status-text").innerText = "Call Connected";
+                    initializeWebRtcConnection(currentRoomId, true);
+                } else if (callInfo.callStatus === "rejected" || callInfo.callStatus === "ended") {
+                    stopAllActiveHardwareTracks();
                 }
             });
         }
 
-        function dispatchMessage(textOverride = "", mediaOverride = "") {
-            const input = document.getElementById('msgInput');
-            const txt = textOverride ? textOverride : input.value.trim();
+
+        // ==================== 🎛️ INBOUND SIGNAL HANDLING MATRIX (RECEIVER) ====================
+
+        // Global interface listener mapped to core pipeline trigger logic built into Android source native layers hooks
+        window.initiateIncomingCallConnection = function(roomId) {
+            currentRoomId = roomId;
+            document.getElementById("inapp-call-popup").style.display = "none";
+            document.getElementById("ringtone-player").pause();
             
-            if(!txt && !mediaOverride) return;
+            document.getElementById("call-status-text").innerText = "Connecting Call...";
+            document.getElementById("video-call-overlay").style.display = "flex";
 
-            database.ref('secure_chats/' + getRoomId()).push({
-                senderUid: currentUid,
-                senderName: currentUserName,
-                receiverUid: targetUid,
-                text: txt,
-                mediaUrl: mediaOverride,
-                status: "sent", // Base mapping initialization structure
-                timestamp: firebase.database.ServerValue.TIMESTAMP
-            });
+            database.ref('secure_chats_calls/' + currentRoomId).update({ callStatus: "accepted" });
+            initializeWebRtcConnection(currentRoomId, false);
+        };
 
-            input.value = "";
-            document.getElementById('galleryPicker').value = ""; // Flush pick node values
+        // Listen for all changes directed towards this profile structure paths
+        database.ref('secure_chats_calls').on('child_added', (snapshot) => {
+            const callData = snapshot.val();
+            if (callData.receiverUid === myUid && callData.callStatus === "pending") {
+                currentRoomId = snapshot.key;
+                triggerInAppCallRingModal(callData);
+            }
+        });
+
+        database.ref('secure_chats_calls').on('child_changed', (snapshot) => {
+            const callData = snapshot.val();
+            if (snapshot.key === currentRoomId && (callData.callStatus === "rejected" || callData.callStatus === "ended")) {
+                stopAllActiveHardwareTracks();
+            }
+        });
+
+        function triggerInAppCallRingModal(callData) {
+            document.getElementById("popup-caller-name").innerText = callData.callerName + " Is Calling...";
+            document.getElementById("inapp-call-popup").style.display = "flex";
+            document.getElementById("ringtone-player").play().catch(()=>{});
+
+            // Bind Actions Controls Hooks
+            document.getElementById("popup-ans-btn").onclick = function() {
+                window.initiateIncomingCallConnection(callData.roomId);
+            };
+
+            document.getElementById("popup-dec-btn").onclick = function() {
+                database.ref('secure_chats_calls/' + callData.roomId).update({ callStatus: "rejected" });
+                document.getElementById("inapp-call-popup").style.display = "none";
+                document.getElementById("ringtone-player").pause();
+            };
         }
 
-        document.getElementById('msgInput').addEventListener('keydown', (e) => { if(e.key === 'Enter') dispatchMessage(); });
+
+        // ==================== 🛠️ WebRTC ROUTER CORE SYNC ENGINE (STUN / SDP) ====================
+
+        async function initializeWebRtcConnection(roomId, isCaller) {
+            peerConnection = new RTCPeerConnection(rtcIceServers);
+            remoteStream = new MediaStream();
+            document.getElementById("remote-video").srcObject = remoteStream;
+
+            if (!localStream) {
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                document.getElementById("local-video").srcObject = localStream;
+            }
+
+            // Push tracks to peer pipeline context mappings loop
+            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+            peerConnection.ontrack = (event) => {
+                event.streams[0].getTracks().forEach(track => remoteStream.addTrack(track));
+            };
+
+            // Network ICE candidates sync loops listeners configurations
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    const candidatePath = isCaller ? 'callerCandidates' : 'receiverCandidates';
+                    database.ref(`secure_chats_calls/${roomId}/${candidatePath}`).push(event.candidate.toJSON());
+                }
+            };
+
+            // Negotiation processing models structural routing configurations logic rules
+            if (isCaller) {
+                const offersdp = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offersdp);
+                database.ref(`secure_chats_calls/${roomId}/offer`).set({ type: offersdp.type, sdp: offersdp.sdp });
+            } else {
+                database.ref(`secure_chats_calls/${roomId}/offer`).once('value', async (snapshot) => {
+                    const offer = snapshot.val();
+                    if(offer) {
+                        await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+                        const answersdp = await peerConnection.createAnswer();
+                        await peerConnection.setLocalDescription(answersdp);
+                        database.ref(`secure_chats_calls/${roomId}/answer`).set({ type: answersdp.type, sdp: answersdp.sdp });
+                    }
+                });
+            }
+
+            // Map corresponding channel pathways listeners targets
+            if (isCaller) {
+                database.ref(`secure_chats_calls/${roomId}/answer`).on('value', async (snapshot) => {
+                    const answer = snapshot.val();
+                    if (answer && peerConnection.signalingState !== "stable") {
+                        await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+                    }
+                });
+            }
+
+            // Read dynamic incoming ice array structures stream lines maps target endpoints nodes
+            const candidatesNodeTarget = isCaller ? 'receiverCandidates' : 'callerCandidates';
+            database.ref(`secure_chats_calls/${roomId}/${candidatesNodeTarget}`).on('child_added', (snapshot) => {
+                const candidateData = snapshot.val();
+                if(candidateData) {
+                    peerConnection.addIceCandidate(new RTCIceCandidate(candidateData));
+                }
+            });
+        }
+
+        function hangupCurrentCall() {
+            if (currentRoomId) {
+                database.ref('secure_chats_calls/' + currentRoomId).update({ callStatus: "ended" });
+            }
+            stopAllActiveHardwareTracks();
+        }
+
+        function stopAllActiveHardwareTracks() {
+            document.getElementById("ringtone-player").pause();
+            document.getElementById("video-call-overlay").style.display = "none";
+            document.getElementById("inapp-call-popup").style.display = "none";
+            
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            document.getElementById("remote-video").srcObject = null;
+            document.getElementById("local-video").srcObject = null;
+            document.getElementById("call-status-text").innerText = "Call Disconnected";
+        }
     </script>
 </body>
 </html>

@@ -17,7 +17,7 @@ jobs:
     - name: Set up Java JDK 17
       uses: actions/setup-java@v4
       with:
-        distribution: 'temurin'
+        distribution: 'oracle'
         java-version: '17'
 
     - name: Setup Android Project Files
@@ -28,14 +28,14 @@ jobs:
         mkdir -p android/app/src/main/res/mipmap-mdpi
         mkdir -p android/app/src/main/assets
 
-        # 1. gradle.properties
+        # 1. gradle.properties Setup
         cat << 'EOF' > android/gradle.properties
         android.useAndroidX=true
         android.enableJetifier=true
         org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
         EOF
 
-        # 2. AndroidManifest.xml (Battery & High Speed Stream Optimized)
+        # 2. AndroidManifest.xml (High Speed Network Pipeline Gate)
         cat << 'EOF' > android/app/src/main/AndroidManifest.xml
         <manifest xmlns:android="http://schemas.android.com/apk/res/android">
             <uses-permission android:name="android.permission.INTERNET" />
@@ -190,7 +190,7 @@ jobs:
         }
         EOF
 
-        # 5. RealtimeStreamService.java (SUPER FAST NODE: Event Streaming Gateway - NO COLD LOOP - NO REPEAT BUG)
+        # 5. RealtimeStreamService.java Engine
         cat << 'EOF' > android/app/src/main/java/com/compiler/htmltoapk/RealtimeStreamService.java
         package com.compiler.htmltoapk;
 
@@ -216,7 +216,6 @@ jobs:
             private static final String ENGINE_CHANNEL = "fastchat_engine_hub";
             private static final String ALERT_CHANNEL = "fast_chat_secure_ultimate";
             private boolean isListening = false;
-            // HashSet to fully guarantee that no notification repeats under identical pointer memory addresses
             private HashSet<String> deliveredKeys = new HashSet<>();
 
             @Override
@@ -264,11 +263,10 @@ jobs:
                                     continue;
                                 }
 
-                                // Streaming URL utilizing Server-Sent-Events protocol via Firebase REST Streaming Architecture
                                 URL url = new URL("https://movi-hub-default-rtdb.firebaseio.com/secure_chats.json");
                                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                                 conn.setRequestProperty("Accept", "text/event-stream");
-                                conn.setReadTimeout(0); // Indefinite read timeout for continuous socket processing
+                                conn.setReadTimeout(0);
 
                                 BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
                                 String line;
@@ -278,7 +276,6 @@ jobs:
                                         if (rawJson.equals("null") || rawJson.isEmpty()) continue;
 
                                         JSONObject streamPacket = new JSONObject(rawJson);
-                                        // Process dynamic structural child modifications updates instantly
                                         if (streamPacket.has("path") && streamPacket.has("data")) {
                                             String path = streamPacket.getString("path");
                                             Object dataObj = streamPacket.get("data");
@@ -286,15 +283,12 @@ jobs:
                                             if (dataObj instanceof JSONObject) {
                                                 JSONObject dataJson = (JSONObject) dataObj;
 
-                                                // If packet is a complete room structure modification map
                                                 if (path.equals("/")) {
-                                                    // Suppress historical records upon fresh streaming pipe connection setups
                                                     if (graceBootMode) {
                                                         graceBootMode = false;
                                                         continue;
                                                     }
                                                 } else if (path.contains(myUid)) {
-                                                    // Parse single nested push dynamic event updates instantly
                                                     parseMessagePayloadAndAlert(dataJson, myUid);
                                                 }
                                             }
@@ -313,7 +307,6 @@ jobs:
 
             private void parseMessagePayloadAndAlert(JSONObject data, String myUid) {
                 try {
-                    // Extract data variables directly if it contains single packet properties
                     if (data.has("senderUid") && data.has("receiverUid")) {
                         String senderUid = data.getString("senderUid");
                         String receiverUid = data.getString("receiverUid");
@@ -326,7 +319,7 @@ jobs:
 
                         if (!senderUid.equals(myUid) && receiverUid.equals(myUid) && !status.equals("read")) {
                             if (!deliveredKeys.contains(messageUniqueFingerprint)) {
-                                deliveredKeys.add(messageUniqueFingerprint); // Guarantee absolute 1-time run
+                                deliveredKeys.add(messageUniqueFingerprint);
 
                                 if (!MainActivity.isAppOpen || !MainActivity.activeChatPartnerUid.equals(senderUid)) {
                                     triggerInstantPushAlert(senderName, text.isEmpty() ? "🖼️ Shared an Image Gallery item" : text);
@@ -334,7 +327,6 @@ jobs:
                             }
                         }
                     } else {
-                        // Iterate through inner nodes if data maps down nested children arrays tree structures
                         java.util.Iterator<String> structuralKeys = data.keys();
                         while (structuralKeys.hasNext()) {
                             String uniqueNodeKey = structuralKeys.next();
@@ -356,7 +348,7 @@ jobs:
                         .setContentTitle(sender)
                         .setContentText(body)
                         .setPriority(NotificationCompat.PRIORITY_HIGH)
-                        .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)) // Play sound instantly
+                        .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
                         .setDefaults(NotificationCompat.DEFAULT_ALL)
                         .setAutoCancel(true);
 
@@ -392,7 +384,7 @@ jobs:
         cat << 'EOF' > android/app/build.gradle
         plugins { id 'com.android.application' }
         android {
-            namespace 'com.compiler.htmltoapk'
+            namespace "com.compiler.htmltoapk"
             compileSdk 34
             defaultConfig {
                 applicationId "com.compiler.htmltoapk"
@@ -406,17 +398,34 @@ jobs:
         dependencies { implementation 'androidx.core:core:1.12.0' }
         EOF
 
-    - name: Inject Custom App Logo
+    - name: Inject Custom Assets and Logo Resources
       run: |
         if [ -f "logo.png" ]; then
           cp logo.png android/app/src/main/res/mipmap-mdpi/ic_launcher.png
         else
-          touch android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+          cp android/app/src/main/java/com/compiler/htmltoapk/MainActivity.java android/app/src/main/res/mipmap-mdpi/ic_launcher.png
         fi
 
-    - name: Inject HTML into App Assets
-      run: |
         if [ -f "index.html" ]; then
           cp index.html android/app/src/main/assets/index.html
         else
-          echo "<h1>Error</h1>" > android/app/src/m
+          echo "<h1>Fast Chat Setup Error</h1>" > android/app/src/main/assets/index.html
+        fi
+
+    - name: Build Android Project wrapper
+      run: |
+        cd android
+        gradle wrapper --gradle-version 8.2 --distribution-type bin
+        chmod +x gradlew
+
+    - name: Compile and Generate APK
+      run: |
+        cd android
+        ./gradlew assembleDebug
+
+    - name: Upload Generated APK Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: Fast-Chat-Ultimate-APK
+        path: android/app/build/outputs/apk/debug/app-debug.apk
+        

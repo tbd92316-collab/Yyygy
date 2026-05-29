@@ -44,7 +44,6 @@
         .msg-meta { display: flex; align-items: center; justify-content: flex-end; gap: 5px; font-size: 11px; color: #8696a0; margin-top: 4px; align-self: flex-end; }
         .bubble-out .msg-meta { color: #a4cbb4; }
         
-        /* Dynamic Dual Tick Colors */
         .tick-icon { font-size: 11px; margin-left: 2px; font-weight: bold; }
         .tick-unread { color: #8696a0; }
         .tick-read { color: #53bdeb; }
@@ -54,10 +53,9 @@
         .action-row { background-color: #202c33; padding: 10px; display: flex; align-items: center; gap: 8px; }
         .back-btn { background: transparent; border: none; color: #8696a0; font-size: 20px; cursor: pointer; margin-right: 8px; }
         
-        /* Styled File Picker overlay layout */
         .file-label { background: #2a3942; color: white; padding: 12px; border-radius: 6px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; }
 
-        /* ==================== 🎥 ONLY ADDED: VIDEO CALL CUSTOM OVERLAY STYLES ==================== */
+        /* Video Call Frames */
         #videoOverlayFrame { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #0b141a; display: none; flex-direction: column; z-index: 10000; }
         .video-box-container { flex: 1; position: relative; width: 100%; height: 100%; }
         #remoteVideoPlayer { width: 100%; height: 100%; object-fit: cover; background: #111b21; }
@@ -67,7 +65,6 @@
         .call-banner-txt { position: absolute; top: 30px; left: 0; width: 100%; text-align: center; font-size: 16px; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.8); z-index: 20; color: #e9edef; }
         .header-call-trigger { background: transparent; border: none; color: #00a884; font-size: 20px; cursor: pointer; padding: 4px 8px; font-weight: bold; margin-left: auto; }
         
-        /* Incoming Call Custom In-App Floating Notification Alert Container */
         #inAppCallPopupAlert { position: fixed; top: 15px; left: 5%; width: 90%; background: #202c33; border-radius: 10px; padding: 14px 16px; display: none; align-items: center; justify-content: space-between; box-shadow: 0 8px 24px rgba(0,0,0,0.6); border: 1.5px solid #00a884; z-index: 10001; }
         .popup-control-btns { display: flex; gap: 10px; }
         .alert-action-btn { padding: 8px 14px; border: none; border-radius: 5px; font-weight: bold; color: white; cursor: pointer; font-size: 13px; }
@@ -120,7 +117,6 @@
                 <button class="back-btn" onclick="exitChatRoom()">✕</button>
                 <div class="user-avatar" id="activeChatAvatar" style="width:34px; height:34px; font-size:14px; margin-right:10px;">?</div>
                 <div class="header-title" id="activeChatName">Connecting...</div>
-                
                 <button class="header-call-trigger" onclick="initiateOutboundCall()">📞</button>
             </div>
         </div>
@@ -179,7 +175,6 @@
         let targetUid = "";
         let targetUserName = "";
 
-        // ONLY ADDED: WebRTC Variable Management Store pointers
         let streamRoomId = "";
         let rtcLocalStream = null;
         let rtcRemoteStream = null;
@@ -189,6 +184,7 @@
         function showLoader() { document.getElementById('globalLoader').style.display = 'flex'; }
         function hideLoader() { document.getElementById('globalLoader').style.display = 'none'; }
 
+        // FIXED: Robust Authentication Switch State Handling Router
         auth.onAuthStateChanged(user => {
             showLoader();
             if (user) {
@@ -200,10 +196,14 @@
                         if (window.AndroidBridge && typeof window.AndroidBridge.updateUserSession === 'function') {
                             window.AndroidBridge.updateUserSession(currentUid, currentUserName);
                         }
-                        launchDashboard();
                         
-                        // ONLY ADDED: Listen for unexpected background calls on account initialization mapping
+                        // FIXED: Ask for explicit push notification permissions instantly upon verification
+                        requestPushNotificationPermission();
+                        
+                        launchDashboard();
                         activateGlobalInboundCallSignalListener();
+                    } else {
+                        showPage('authPage');
                     }
                     hideLoader();
                 });
@@ -212,6 +212,17 @@
                 hideLoader();
             }
         });
+
+        // FIXED: Native HTML5/Android Bridge Web Push permission handler injector
+        function requestPushNotificationPermission() {
+            if ("Notification" in window) {
+                Notification.requestPermission().then(permission => {
+                    if (permission === "granted") {
+                        console.log("Notification permission approved!");
+                    }
+                });
+            }
+        }
 
         function toggleAuthForms(showRegister) {
             document.getElementById('loginBox').style.display = showRegister ? 'none' : 'block';
@@ -346,11 +357,4 @@
             let initialLoadFlag = false;
             database.ref('secure_chats/' + rid).once('value', () => { initialLoadFlag = true; hideLoader(); });
 
-            database.ref('secure_chats/' + rid).on('child_added', snap => {
-                const m = snap.val();
-                const mKey = snap.key;
-                const isMe = m.senderUid === currentUid;
-                
-                if (!isMe && m.status !== 'read') {
-                    database.ref(`secure_chats/${rid}/${mKey}/status`).set('read');
-             
+            database.ref(

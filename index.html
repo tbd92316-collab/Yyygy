@@ -44,6 +44,7 @@
         .msg-meta { display: flex; align-items: center; justify-content: flex-end; gap: 5px; font-size: 11px; color: #8696a0; margin-top: 4px; align-self: flex-end; }
         .bubble-out .msg-meta { color: #a4cbb4; }
         
+        /* Dynamic Dual Tick Colors */
         .tick-icon { font-size: 11px; margin-left: 2px; font-weight: bold; }
         .tick-unread { color: #8696a0; }
         .tick-read { color: #53bdeb; }
@@ -53,23 +54,8 @@
         .action-row { background-color: #202c33; padding: 10px; display: flex; align-items: center; gap: 8px; }
         .back-btn { background: transparent; border: none; color: #8696a0; font-size: 20px; cursor: pointer; margin-right: 8px; }
         
+        /* Styled File Picker overlay layout */
         .file-label { background: #2a3942; color: white; padding: 12px; border-radius: 6px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; }
-
-        /* Video Call Frames */
-        #videoOverlayFrame { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #0b141a; display: none; flex-direction: column; z-index: 10000; }
-        .video-box-container { flex: 1; position: relative; width: 100%; height: 100%; }
-        #remoteVideoPlayer { width: 100%; height: 100%; object-fit: cover; background: #111b21; }
-        #localVideoPlayer { position: absolute; top: 20px; right: 20px; width: 110px; height: 150px; object-fit: cover; border-radius: 8px; border: 2px solid #00a884; background: #222e35; z-index: 10; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
-        .video-controls-row { position: absolute; bottom: 40px; left: 0; width: 100%; display: flex; justify-content: center; gap: 20px; z-index: 20; }
-        .call-end-btn { background: #ef4444; border: none; width: 55px; height: 55px; border-radius: 50%; color: white; font-size: 22px; cursor: pointer; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 10px rgba(239,68,68,0.3); }
-        .call-banner-txt { position: absolute; top: 30px; left: 0; width: 100%; text-align: center; font-size: 16px; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.8); z-index: 20; color: #e9edef; }
-        .header-call-trigger { background: transparent; border: none; color: #00a884; font-size: 20px; cursor: pointer; padding: 4px 8px; font-weight: bold; margin-left: auto; }
-        
-        #inAppCallPopupAlert { position: fixed; top: 15px; left: 5%; width: 90%; background: #202c33; border-radius: 10px; padding: 14px 16px; display: none; align-items: center; justify-content: space-between; box-shadow: 0 8px 24px rgba(0,0,0,0.6); border: 1.5px solid #00a884; z-index: 10001; }
-        .popup-control-btns { display: flex; gap: 10px; }
-        .alert-action-btn { padding: 8px 14px; border: none; border-radius: 5px; font-weight: bold; color: white; cursor: pointer; font-size: 13px; }
-        .alert-action-btn.accept { background: #00a884; }
-        .alert-action-btn.decline { background: #ef4444; }
     </style>
 </head>
 <body>
@@ -113,11 +99,10 @@
 
     <div id="chatPage" class="page">
         <div class="header">
-            <div style="display:flex; align-items:center; flex:1;">
+            <div style="display:flex; align-items:center;">
                 <button class="back-btn" onclick="exitChatRoom()">✕</button>
                 <div class="user-avatar" id="activeChatAvatar" style="width:34px; height:34px; font-size:14px; margin-right:10px;">?</div>
                 <div class="header-title" id="activeChatName">Connecting...</div>
-                <button class="header-call-trigger" onclick="initiateOutboundCall()">📞</button>
             </div>
         </div>
         <div class="chat-stream" id="messageStream"></div>
@@ -131,31 +116,8 @@
         </div>
     </div>
 
-    <div id="videoOverlayFrame">
-        <div class="call-banner-txt" id="callStatusBanner">Connecting Peer Stream Lines...</div>
-        <div class="video-box-container">
-            <video id="remoteVideoPlayer" autoplay playsinline></video>
-            <video id="localVideoPlayer" autoplay playsinline muted></video>
-        </div>
-        <div class="video-controls-row">
-            <button class="call-end-btn" onclick="terminateCurrentCallPipe()">✕</button>
-        </div>
-    </div>
-
-    <div id="inAppCallPopupAlert">
-        <div>
-            <h4 id="popupCallerLabel" style="margin:0; color:#e9edef; font-size:15px;">Incoming Request</h4>
-            <p style="margin:4px 0 0 0; font-size:12px; color:#8696a0;">Video Call Ringing...</p>
-        </div>
-        <div class="popup-control-btns">
-            <button class="alert-action-btn accept" id="popupAcceptBtn">Answer</button>
-            <button class="alert-action-btn decline" id="popupDeclineBtn">Decline</button>
-        </div>
-    </div>
-
-    <audio id="audioAlertEngine" loop src="https://assets.mixkit.co/active_storage/sfx/1359/1359-84.wav" preload="auto"></audio>
-
     <script>
+        // Realtime injected legacy credentials matrix
         const firebaseConfig = {
             apiKey: "AIzaSyAOsGkBI2QDkZAuogCEWsX2Eu3Q2jJYeCE",
             authDomain: "movi-hub.firebaseapp.com",
@@ -175,16 +137,9 @@
         let targetUid = "";
         let targetUserName = "";
 
-        let streamRoomId = "";
-        let rtcLocalStream = null;
-        let rtcRemoteStream = null;
-        let rtcPeerConnection = null;
-        const stunServersConfig = { iceServers: [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] }] };
-
         function showLoader() { document.getElementById('globalLoader').style.display = 'flex'; }
         function hideLoader() { document.getElementById('globalLoader').style.display = 'none'; }
 
-        // FIXED: Robust Authentication Switch State Handling Router
         auth.onAuthStateChanged(user => {
             showLoader();
             if (user) {
@@ -196,14 +151,7 @@
                         if (window.AndroidBridge && typeof window.AndroidBridge.updateUserSession === 'function') {
                             window.AndroidBridge.updateUserSession(currentUid, currentUserName);
                         }
-                        
-                        // FIXED: Ask for explicit push notification permissions instantly upon verification
-                        requestPushNotificationPermission();
-                        
                         launchDashboard();
-                        activateGlobalInboundCallSignalListener();
-                    } else {
-                        showPage('authPage');
                     }
                     hideLoader();
                 });
@@ -212,17 +160,6 @@
                 hideLoader();
             }
         });
-
-        // FIXED: Native HTML5/Android Bridge Web Push permission handler injector
-        function requestPushNotificationPermission() {
-            if ("Notification" in window) {
-                Notification.requestPermission().then(permission => {
-                    if (permission === "granted") {
-                        console.log("Notification permission approved!");
-                    }
-                });
-            }
-        }
 
         function toggleAuthForms(showRegister) {
             document.getElementById('loginBox').style.display = showRegister ? 'none' : 'block';
@@ -337,12 +274,13 @@
             return hours + ':' + minutes + ' ' + ampm;
         }
 
+        // Gallery Image binary converter handler
         function processGalleryImage(input) {
             if (input.files && input.files[0]) {
                 showLoader();
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    dispatchMessage("", e.target.result);
+                    dispatchMessage("", e.target.result); // Injects converted base64 directly into database array packet
                 };
                 reader.readAsDataURL(input.files[0]);
             }
@@ -357,4 +295,77 @@
             let initialLoadFlag = false;
             database.ref('secure_chats/' + rid).once('value', () => { initialLoadFlag = true; hideLoader(); });
 
-            database.ref(
+            database.ref('secure_chats/' + rid).on('child_added', snap => {
+                const m = snap.val();
+                const mKey = snap.key;
+                const isMe = m.senderUid === currentUid;
+                
+                // CRITICAL FIX: Mark message as read dynamically if open by receiver
+                if (!isMe && m.status !== 'read') {
+                    database.ref(`secure_chats/${rid}/${mKey}/status`).set('read');
+                }
+
+                const bubble = document.createElement('div');
+                bubble.className = `bubble ${isMe ? 'bubble-out' : 'bubble-in'}`;
+                
+                let content = m.text ? `<div>${m.text}</div>` : "";
+                if(m.mediaUrl) content += `<img src="${m.mediaUrl}" class="shared-img">`;
+                
+                const timeStr = formatTime(m.timestamp);
+                
+                // Tick Logic rendering block
+                let tickHtml = "";
+                if (isMe) {
+                    if (m.status === 'read') {
+                        tickHtml = `<span class="tick-icon tick-read">✓✓</span>`; // Double blue tick
+                    } else {
+                        tickHtml = `<span class="tick-icon tick-unread">✓</span>`; // Single gray tick
+                    }
+                }
+
+                bubble.innerHTML = `
+                    ${content}
+                    <div class="msg-meta">
+                        <span>${timeStr}</span>
+                        ${tickHtml}
+                    </div>
+                `;
+                
+                container.appendChild(bubble);
+                container.scrollTop = container.scrollHeight;
+                if(!initialLoadFlag) hideLoader();
+            });
+
+            // Listen for structural state transformations (Updates gray tick to blue tick live)
+            database.ref('secure_chats/' + rid).on('child_changed', snap => {
+                const m = snap.val();
+                if(m.senderUid === currentUid) {
+                    streamMessages(); // Hot reload viewport tree elements instantly
+                }
+            });
+        }
+
+        function dispatchMessage(textOverride = "", mediaOverride = "") {
+            const input = document.getElementById('msgInput');
+            const txt = textOverride ? textOverride : input.value.trim();
+            
+            if(!txt && !mediaOverride) return;
+
+            database.ref('secure_chats/' + getRoomId()).push({
+                senderUid: currentUid,
+                senderName: currentUserName,
+                receiverUid: targetUid,
+                text: txt,
+                mediaUrl: mediaOverride,
+                status: "sent", // Base mapping initialization structure
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            });
+
+            input.value = "";
+            document.getElementById('galleryPicker').value = ""; // Flush pick node values
+        }
+
+        document.getElementById('msgInput').addEventListener('keydown', (e) => { if(e.key === 'Enter') dispatchMessage(); });
+    </script>
+</body>
+</html>

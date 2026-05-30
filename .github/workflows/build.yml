@@ -40,7 +40,7 @@ jobs:
           org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
           EOF
 
-          # 2. AndroidManifest.xml (FIXED RECEIVER ATTRIBUTE ERROR)
+          # 2. AndroidManifest.xml
           cat << 'EOF' > android/app/src/main/AndroidManifest.xml
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <uses-permission android:name="android.permission.INTERNET" />
@@ -210,7 +210,7 @@ jobs:
           }
           EOF
 
-          # 5. RealtimeStreamService.java Engine
+          # 5. RealtimeStreamService.java Engine (PATCHED: Resource Isolation Optimized)
           cat << 'EOF' > android/app/src/main/java/com/compiler/htmltoapk/RealtimeStreamService.java
           package com.compiler.htmltoapk;
 
@@ -303,11 +303,11 @@ jobs:
                       @Override
                       public void run() {
                           boolean graceBootMode = true;
+                          SharedPreferences prefs = getSharedPreferences("FastChatPrefs", MODE_PRIVATE);
+                          
                           while (isListening) {
                               try {
-                                  SharedPreferences prefs = getSharedPreferences("FastChatPrefs", MODE_PRIVATE);
                                   String myUid = prefs.getString("user_uid", "");
-
                                   if (myUid.isEmpty()) {
                                       Thread.sleep(4000);
                                       continue;
@@ -337,7 +337,6 @@ jobs:
                                                       if (graceBootMode) {
                                                           graceBootMode = false;
                                                           continue;
-                                                          
                                                       }
                                                   } else if (path.contains(myUid)) {
                                                       parseMessagePayloadAndAlert(dataJson, myUid);

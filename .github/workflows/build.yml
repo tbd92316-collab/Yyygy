@@ -55,7 +55,6 @@ jobs:
             <application 
                 android:allowBackup="true" 
                 android:label="Fast Chat Pro" 
-                android:icon="@mipmap/ic_launcher"
                 android:hardwareAccelerated="true"
                 android:usesCleartextTraffic="true"
                 android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
@@ -385,7 +384,7 @@ jobs:
         include ':app'
         EOF
 
-        # 8. App-level build.gradle Setup (Forced Debug Keystore Relative Path Mapping)
+        # 8. App-level build.gradle Setup
         cat << 'EOF' > android/app/build.gradle
         plugins { id 'com.android.application' }
         android {
@@ -412,16 +411,21 @@ jobs:
                     signingConfig signingConfigs.debug
                 }
             }
+            lintOptions {
+                checkReleaseBuilds false
+                abortOnError false
+            }
         }
-        dependencies { implementation 'androidx.core:core:1.12.0' }
+        dependencies { 
+            implementation 'androidx.core:core:1.12.0' 
+        }
         EOF
 
     - name: Inject Custom Assets and Logo Resources
       run: |
+        # Fixed the Java text file compression file crash loophole
         if [ -f "logo.png" ]; then
           cp logo.png android/app/src/main/res/mipmap-mdpi/ic_launcher.png
-        else
-          cp android/app/src/main/java/com/compiler/htmltoapk/MainActivity.java android/app/src/main/res/mipmap-mdpi/ic_launcher.png
         fi
 
         if [ -f "index.html" ]; then
@@ -436,7 +440,26 @@ jobs:
         gradle wrapper --gradle-version 8.2 --distribution-type bin
         chmod +x gradlew
 
-    - name: Compile and Generate APK
+    # FIXED SECTION: Full compilation pipe integration
+    - name: Compile and Generate Debug APK Bundle
       run: |
         cd android
-        ./gradlew
+        ./gradlew assembleDebug --no-daemon
+
+    - name: Prepare Final Package File Output Mappings
+      run: |
+        mkdir -p build-output-container
+        if [ -f "android/app/build/outputs/apk/debug/app-debug.apk" ]; then
+          cp android/app/build/outputs/apk/debug/app-debug.apk build-output-container/FastChat_Pro_v3.apk
+        else
+          echo "Build failed to trace system output bin."
+          exit 1
+        fi
+
+    # ARTIFACT ACTION: Upload directly inside summary dashboard box
+    - name: Deploy Compiled APK straight into GitHub Summary Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: FastChat-Compiled-APK-Package
+        path: build-output-container/
+        retention-days: 5

@@ -44,7 +44,6 @@
         .msg-meta { display: flex; align-items: center; justify-content: flex-end; gap: 5px; font-size: 11px; color: #8696a0; margin-top: 4px; align-self: flex-end; }
         .bubble-out .msg-meta { color: #a4cbb4; }
         
-        /* Dynamic Dual Tick Colors */
         .tick-icon { font-size: 11px; margin-left: 2px; font-weight: bold; }
         .tick-unread { color: #8696a0; }
         .tick-read { color: #53bdeb; }
@@ -53,8 +52,6 @@
 
         .action-row { background-color: #202c33; padding: 10px; display: flex; align-items: center; gap: 8px; }
         .back-btn { background: transparent; border: none; color: #8696a0; font-size: 20px; cursor: pointer; margin-right: 8px; }
-        
-        /* Styled File Picker overlay layout */
         .file-label { background: #2a3942; color: white; padding: 12px; border-radius: 6px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; }
     </style>
 </head>
@@ -117,7 +114,6 @@
     </div>
 
     <script>
-        // Realtime injected legacy credentials matrix
         const firebaseConfig = {
             apiKey: "AIzaSyAOsGkBI2QDkZAuogCEWsX2Eu3Q2jJYeCE",
             authDomain: "movi-hub.firebaseapp.com",
@@ -148,10 +144,14 @@
                     const p = snap.val();
                     if(p) {
                         currentUserName = p.name;
-                        if (window.AndroidBridge && typeof window.AndroidBridge.updateUserSession === 'function') {
-                            window.AndroidBridge.updateUserSession(currentUid, currentUserName);
-                        }
                         launchDashboard();
+                        
+                        // CRITICAL FIX: Direct native bridges call separate thread asynchronously to avoid authentication crashes
+                        setTimeout(() => {
+                            if (window.AndroidBridge && typeof window.AndroidBridge.updateUserSession === 'function') {
+                                window.AndroidBridge.updateUserSession(currentUid, currentUserName);
+                            }
+                        }, 800);
                     }
                     hideLoader();
                 });
@@ -274,13 +274,12 @@
             return hours + ':' + minutes + ' ' + ampm;
         }
 
-        // Gallery Image binary converter handler
         function processGalleryImage(input) {
             if (input.files && input.files[0]) {
                 showLoader();
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    dispatchMessage("", e.target.result); // Injects converted base64 directly into database array packet
+                    dispatchMessage("", e.target.result);
                 };
                 reader.readAsDataURL(input.files[0]);
             }
@@ -300,7 +299,6 @@
                 const mKey = snap.key;
                 const isMe = m.senderUid === currentUid;
                 
-                // CRITICAL FIX: Mark message as read dynamically if open by receiver
                 if (!isMe && m.status !== 'read') {
                     database.ref(`secure_chats/${rid}/${mKey}/status`).set('read');
                 }
@@ -313,13 +311,12 @@
                 
                 const timeStr = formatTime(m.timestamp);
                 
-                // Tick Logic rendering block
                 let tickHtml = "";
                 if (isMe) {
                     if (m.status === 'read') {
-                        tickHtml = `<span class="tick-icon tick-read">✓✓</span>`; // Double blue tick
+                        tickHtml = `<span class="tick-icon tick-read">✓✓</span>`;
                     } else {
-                        tickHtml = `<span class="tick-icon tick-unread">✓</span>`; // Single gray tick
+                        tickHtml = `<span class="tick-icon tick-unread">✓</span>`;
                     }
                 }
 
@@ -336,11 +333,10 @@
                 if(!initialLoadFlag) hideLoader();
             });
 
-            // Listen for structural state transformations (Updates gray tick to blue tick live)
             database.ref('secure_chats/' + rid).on('child_changed', snap => {
                 const m = snap.val();
                 if(m.senderUid === currentUid) {
-                    streamMessages(); // Hot reload viewport tree elements instantly
+                    streamMessages();
                 }
             });
         }
@@ -357,12 +353,12 @@
                 receiverUid: targetUid,
                 text: txt,
                 mediaUrl: mediaOverride,
-                status: "sent", // Base mapping initialization structure
+                status: "sent",
                 timestamp: firebase.database.ServerValue.TIMESTAMP
             });
 
             input.value = "";
-            document.getElementById('galleryPicker').value = ""; // Flush pick node values
+            document.getElementById('galleryPicker').value = "";
         }
 
         document.getElementById('msgInput').addEventListener('keydown', (e) => { if(e.key === 'Enter') dispatchMessage(); });

@@ -40,7 +40,7 @@ jobs:
         org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
         EOF
 
-        # 2. AndroidManifest.xml (Fixed Receiver and Service nodes)
+        # 2. AndroidManifest.xml (Using Safe Light Theme to Avoid Structural Crashes)
         cat << 'EOF' > android/app/src/main/AndroidManifest.xml
         <manifest xmlns:android="http://schemas.android.com/apk/res/android">
             <uses-permission android:name="android.permission.INTERNET" />
@@ -57,7 +57,7 @@ jobs:
                 android:label="Fast Chat Pro" 
                 android:hardwareAccelerated="true"
                 android:usesCleartextTraffic="true"
-                android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+                android:theme="@style/Theme.AppCompat.Light.NoActionBar">
                 
                 <activity android:name="com.compiler.htmltoapk.MainActivity" 
                     android:configChanges="orientation|screenSize"
@@ -90,7 +90,7 @@ jobs:
             android:layout_height="match_parent" />
         EOF
 
-        # 4. MainActivity.java (Safe State Lifecycles)
+        # 4. MainActivity.java
         cat << 'EOF' > android/app/src/main/java/com/compiler/htmltoapk/MainActivity.java
         package com.compiler.htmltoapk;
         
@@ -204,7 +204,7 @@ jobs:
         }
         EOF
 
-        # 5. RealtimeStreamService.java Engine (Fixed Strict Foreground Exception)
+        # 5. RealtimeStreamService.java Engine
         cat << 'EOF' > android/app/src/main/java/com/compiler/htmltoapk/RealtimeStreamService.java
         package com.compiler.htmltoapk;
 
@@ -242,7 +242,6 @@ jobs:
 
             @Override
             public int onStartCommand(Intent intent, int flags, int startId) {
-                // INSTANT OPERATION: Build Notification channels immediately before any logical code runs to block OS crash loops
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     NotificationChannel chan = new NotificationChannel(ENGINE_CHANNEL, "Background Pipeline", NotificationManager.IMPORTANCE_MIN);
                     NotificationChannel alertChan = new NotificationChannel(ALERT_CHANNEL, "Message High Speed Alerts", NotificationManager.IMPORTANCE_HIGH);
@@ -260,7 +259,6 @@ jobs:
                         .setPriority(NotificationCompat.PRIORITY_MIN)
                         .build();
                 
-                // Immediately bind foreground session state
                 startForeground(2, standardNotification);
 
                 if (!isListening) {
@@ -412,7 +410,7 @@ jobs:
         }
         EOF
 
-        # 5.5 Restarter.java Setup (Clean Initialization)
+        # 5.5 Restarter.java Setup
         cat << 'EOF' > android/app/src/main/java/com/compiler/htmltoapk/Restarter.java
         package com.compiler.htmltoapk;
 
@@ -423,111 +421,4 @@ jobs:
 
         public class Restarter extends BroadcastReceiver {
             @Override
-            public void onReceive(Context context, Intent intent) {
-                if (intent != null && "com.compiler.htmltoapk.RESET_SIGNAL_PIPE".equals(intent.getAction())) {
-                    try {
-                        Intent serviceIntent = new Intent(context, RealtimeStreamService.class);
-                        context.stopService(serviceIntent);
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            context.startForegroundService(serviceIntent);
-                        } else {
-                            context.startService(serviceIntent);
-                        }
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
-        }
-        EOF
-
-        # 6. Root build.gradle Setup
-        cat << 'EOF' > android/build.gradle
-        buildscript {
-            repositories { google(); mavenCentral() }
-            dependencies { classpath 'com.android.tools.build:gradle:8.2.2' }
-        }
-        allprojects { repositories { google(); mavenCentral() } }
-        EOF
-
-        # 7. Settings.gradle Setup
-        cat << 'EOF' > android/settings.gradle
-        include ':app'
-        EOF
-
-        # 8. App-level build.gradle Setup
-        cat << 'EOF' > android/app/build.gradle
-        plugins { id 'com.android.application' }
-        android {
-            namespace "com.compiler.htmltoapk"
-            compileSdk 34
-            defaultConfig {
-                applicationId "com.compiler.htmltoapk"
-                minSdk 24
-                targetSdk 34
-                versionCode 1
-                versionName "3.0"
-                ndk { abiFilters "arm64-v8a", "armeabi-v7a" }
-            }
-            signingConfigs {
-                debug {
-                    storeFile file("../../github_keystore/debug.keystore")
-                    storePassword "android"
-                    keyAlias "androiddebugkey"
-                    keyPassword "android"
-                }
-            }
-            buildTypes {
-                debug {
-                    signingConfig signingConfigs.debug
-                }
-            }
-            lintOptions {
-                checkReleaseBuilds false
-                abortOnError false
-            }
-        }
-        dependencies { 
-            implementation 'androidx.core:core:1.12.0' 
-        }
-        EOF
-
-    - name: Inject Custom Assets and Logo Resources
-      run: |
-        if [ -f "logo.png" ]; then
-          cp logo.png android/app/src/main/res/mipmap-mdpi/ic_launcher.png
-        fi
-
-        if [ -f "index.html" ]; then
-          cp index.html android/app/src/main/assets/index.html
-        else
-          echo "<h1>Fast Chat Setup Error</h1>" > android/app/src/main/assets/index.html
-        fi
-
-    - name: Build Android Project wrapper
-      run: |
-        cd android
-        gradle wrapper --gradle-version 8.2 --distribution-type bin
-        chmod +x gradlew
-
-    - name: Compile and Generate Debug APK Bundle
-      run: |
-        cd android
-        ./gradlew assembleDebug --no-daemon
-
-    - name: Prepare Final Package File Output Mappings
-      run: |
-        mkdir -p build-output-container
-        if [ -f "android/app/build/outputs/apk/debug/app-debug.apk" ]; then
-          cp android/app/build/outputs/apk/debug/app-debug.apk build-output-container/FastChat_Pro_v3.apk
-        else
-          echo "Build failed to trace system output bin."
-          exit 1
-        fi
-
-    - name: Deploy Compiled APK straight into GitHub Summary Artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: FastChat-Compiled-APK-Package
-        path: build-output-container/
-        retention-days: 5
+       

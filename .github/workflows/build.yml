@@ -11,414 +11,523 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Repository Code
-      uses: actions/checkout@v4
+      - name: Checkout Repository Code
+        uses: actions/checkout@v4
 
-    - name: Set up Java JDK 17
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '17'
+      - name: Set up Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
 
-    - name: Pre-Generate Local Android Debug Keystore
-      run: |
-        mkdir -p github_keystore
-        keytool -genkey -v -keystore github_keystore/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+      - name: Pre-Generate Local Android Debug Keystore
+        run: |
+          mkdir -p github_keystore
+          keytool -genkey -v -keystore github_keystore/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
 
-    - name: Setup Android Project Files
-      run: |
-        mkdir -p android/app/src/main/java/com/compiler/htmltoapk
-        mkdir -p android/app/src/main/res/layout
-        mkdir -p android/app/src/main/res/values
-        mkdir -p android/app/src/main/res/mipmap-mdpi
-        mkdir -p android/app/src/main/assets
+      - name: Setup Android Project Files
+        run: |
+          mkdir -p android/app/src/main/java/com/compiler/htmltoapk
+          mkdir -p android/app/src/main/res/layout
+          mkdir -p android/app/src/main/res/values
+          mkdir -p android/app/src/main/res/mipmap-mdpi
+          mkdir -p android/app/src/main/assets
 
-        # 1. gradle.properties Setup
-        cat << 'EOF' > android/gradle.properties
-        android.useAndroidX=true
-        android.enableJetifier=true
-        org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
-        EOF
+          # 1. gradle.properties Setup
+          cat << 'EOF' > android/gradle.properties
+          android.useAndroidX=true
+          android.enableJetifier=true
+          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+          EOF
 
-        # 2. AndroidManifest.xml (Using Safe Light Theme to Avoid Structural Crashes)
-        cat << 'EOF' > android/app/src/main/AndroidManifest.xml
-        <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-            <uses-permission android:name="android.permission.INTERNET" />
-            <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-            <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-            <uses-permission android:name="android.permission.WAKE_LOCK" />
-            <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-            <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-            <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-            <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
-            
-            <application 
-                android:allowBackup="true" 
-                android:label="Fast Chat Pro" 
-                android:hardwareAccelerated="true"
-                android:usesCleartextTraffic="true"
-                android:theme="@style/Theme.AppCompat.Light.NoActionBar">
-                
-                <activity android:name="com.compiler.htmltoapk.MainActivity" 
-                    android:configChanges="orientation|screenSize"
-                    android:exported="true">
-                    <intent-filter>
-                        <action android:name="android.intent.action.MAIN" />
-                        <category android:name="android.intent.category.LAUNCHER" />
-                    </intent-filter>
-                </activity>
+          # 2. AndroidManifest.xml
+          cat << 'EOF' > android/app/src/main/AndroidManifest.xml
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.INTERNET" />
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+              <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+              <uses-permission android:name="android.permission.WAKE_LOCK" />
+              <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+              <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+              <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+              
+              <application 
+                  android:allowBackup="true" 
+                  android:label="Fast Chat Pro" 
+                  android:hardwareAccelerated="true"
+                  android:usesCleartextTraffic="true"
+                  android:theme="@style/Theme.AppCompat.Light.NoActionBar">
+                  
+                  <activity android:name="com.compiler.htmltoapk.MainActivity" 
+                      android:configChanges="orientation|screenSize"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
 
-                <service 
-                    android:name="com.compiler.htmltoapk.RealtimeStreamService"
-                    android:foregroundServiceType="dataSync"
-                    android:exported="false" />
+                  <service 
+                      android:name="com.compiler.htmltoapk.RealtimeStreamService"
+                      android:foregroundServiceType="dataSync"
+                      android:exported="false" />
 
-                <receiver android:name="com.compiler.htmltoapk.Restarter" android:exported="false">
-                    <intent-filter>
-                        <action android:name="com.compiler.htmltoapk.RESET_SIGNAL_PIPE" />
-                    </intent-filter>
-                </receiver>
-            </application>
-        </manifest>
-        EOF
+                  <receiver android:name="com.compiler.htmltoapk.Restarter" android:exported="false">
+                      <intent-filter>
+                          <action android:name="com.compiler.htmltoapk.RESET_SIGNAL_PIPE" />
+                      </intent-filter>
+                  </receiver>
+              </application>
+          </manifest>
+          EOF
 
-        # 3. Activity Layout XML
-        cat << 'EOF' > android/app/src/main/res/layout/activity_main.xml
-        <android.webkit.WebView xmlns:android="http://schemas.android.com/apk/res/android"
-            android:id="@+id/webview" 
-            android:layout_width="match_parent" 
-            android:layout_height="match_parent" />
-        EOF
+          # 3. Activity Layout XML
+          cat << 'EOF' > android/app/src/main/res/layout/activity_main.xml
+          <android.webkit.WebView xmlns:android="http://schemas.android.com/apk/res/android"
+              android:id="@+id/webview" 
+              android:layout_width="match_parent" 
+              android:layout_height="match_parent" />
+          EOF
 
-        # 4. MainActivity.java
-        cat << 'EOF' > android/app/src/main/java/com/compiler/htmltoapk/MainActivity.java
-        package com.compiler.htmltoapk;
-        
-        import android.Manifest;
-        import android.app.Activity;
-        import android.content.Context;
-        import android.content.Intent;
-        import android.content.SharedPreferences;
-        import android.net.Uri;
-        import android.os.Build;
-        import android.os.Bundle;
-        import android.webkit.ValueCallback;
-        import android.webkit.WebChromeClient;
-        import android.webkit.WebSettings;
-        import android.webkit.WebView;
-        import android.webkit.WebViewClient;
-        import android.webkit.JavascriptInterface;
-        import androidx.core.app.ActivityCompat;
+          # 4. MainActivity.java
+          cat << 'EOF' > android/app/src/main/java/com/compiler/htmltoapk/MainActivity.java
+          package com.compiler.htmltoapk;
+          
+          import android.Manifest;
+          import android.app.Activity;
+          import android.content.Context;
+          import android.content.Intent;
+          import android.content.SharedPreferences;
+          import android.net.Uri;
+          import android.os.Build;
+          import android.os.Bundle;
+          import android.webkit.ValueCallback;
+          import android.webkit.WebChromeClient;
+          import android.webkit.WebSettings;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+          import android.webkit.JavascriptInterface;
+          import androidx.core.app.ActivityCompat;
 
-        public class MainActivity extends Activity {
-            private WebView webView;
-            public static boolean isAppOpen = false;
-            public static String activeChatPartnerUid = "";
-            private ValueCallback<Uri[]> uploadMessage;
-            private final static int FILECHOOSER_RESULTCODE = 1;
+          public class MainActivity extends Activity {
+              private WebView webView;
+              public static boolean isAppOpen = false;
+              public static String activeChatPartnerUid = "";
+              private ValueCallback<Uri[]> uploadMessage;
+              private final static int FILECHOOSER_RESULTCODE = 1;
 
-            @Override
-            protected void onCreate(Bundle savedInstanceState) {
-                super.onCreate(savedInstanceState);
-                setContentView(R.layout.activity_main);
-                
-                webView = (WebView) findViewById(R.id.webview);
-                WebSettings webSettings = webView.getSettings();
-                webSettings.setJavaScriptEnabled(true);
-                webSettings.setDomStorageEnabled(true);
-                webSettings.setDatabaseEnabled(true);
-                webSettings.setAllowFileAccess(true);
-                webSettings.setAllowContentAccess(true);
-                
-                webView.setWebViewClient(new WebViewClient());
-                
-                webView.setWebChromeClient(new WebChromeClient() {
-                    @Override
-                    public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> filePathCallback, WebChromeClient.FileChooserParams fileChooserParams) {
-                        if (uploadMessage != null) { uploadMessage.onReceiveValue(null); }
-                        uploadMessage = filePathCallback;
-                        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-                        intent.addCategory(Intent.CATEGORY_OPENABLE);
-                        intent.setType("image/*");
-                        startActivityForResult(Intent.createChooser(intent, "Select Image from Gallery"), FILECHOOSER_RESULTCODE);
-                        return true;
-                    }
-                });
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  setContentView(R.layout.activity_main);
+                  
+                  webView = (WebView) findViewById(R.id.webview);
+                  WebSettings webSettings = webView.getSettings();
+                  webSettings.setJavaScriptEnabled(true);
+                  webSettings.setDomStorageEnabled(true);
+                  webSettings.setDatabaseEnabled(true);
+                  webSettings.setAllowFileAccess(true);
+                  webSettings.setAllowContentAccess(true);
+                  
+                  webView.setWebViewClient(new WebViewClient());
+                  
+                  webView.setWebChromeClient(new WebChromeClient() {
+                      @Override
+                      public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> filePathCallback, WebChromeClient.FileChooserParams fileChooserParams) {
+                          if (uploadMessage != null) { uploadMessage.onReceiveValue(null); }
+                          uploadMessage = filePathCallback;
+                          Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+                          intent.addCategory(Intent.CATEGORY_OPENABLE);
+                          intent.setType("image/*");
+                          startActivityForResult(Intent.createChooser(intent, "Select Image from Gallery"), FILECHOOSER_RESULTCODE);
+                          return true;
+                      }
+                  });
 
-                webView.addJavascriptInterface(new WebAppInterface(this), "AndroidBridge");
-                
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS}, 101);
-                }
-                
-                webView.loadUrl("file:///android_asset/index.html");
-            }
+                  webView.addJavascriptInterface(new WebAppInterface(this), "AndroidBridge");
+                  
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                      ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS}, 101);
+                  }
+                  
+                  webView.loadUrl("file:///android_asset/index.html");
+              }
 
-            @Override
-            protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-                if (requestCode == FILECHOOSER_RESULTCODE) {
-                    if (uploadMessage == null) return;
-                    Uri[] results = null;
-                    if (resultCode == Activity.RESULT_OK && data != null) {
-                        String dataString = data.getDataString();
-                        if (dataString != null) { results = new Uri[]{Uri.parse(dataString)}; }
-                    }
-                    uploadMessage.onReceiveValue(results);
-                    uploadMessage = null;
-                }
-            }
+              @Override
+              protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+                  if (requestCode == FILECHOOSER_RESULTCODE) {
+                      if (uploadMessage == null) return;
+                      Uri[] results = null;
+                      if (resultCode == Activity.RESULT_OK && data != null) {
+                          String dataString = data.getDataString();
+                          if (dataString != null) { results = new Uri[]{Uri.parse(dataString)}; }
+                      }
+                      uploadMessage.onReceiveValue(results);
+                      uploadMessage = null;
+                  }
+              }
 
-            @Override
-            protected void onResume() { super.onResume(); isAppOpen = true; }
-            @Override
-            protected void onPause() { super.onPause(); isAppOpen = false; }
-            @Override
-            protected void onDestroy() { super.onDestroy(); isAppOpen = false; }
+              @Override
+              protected void onResume() { super.onResume(); isAppOpen = true; }
+              @Override
+              protected void onPause() { super.onPause(); isAppOpen = false; }
+              @Override
+              protected void onDestroy() { super.onDestroy(); isAppOpen = false; }
 
-            public class WebAppInterface {
-                Context mContext;
-                WebAppInterface(Context c) { mContext = c; }
+              public class WebAppInterface {
+                  Context mContext;
+                  WebAppInterface(Context c) { mContext = c; }
 
-                @JavascriptInterface
-                public void updateUserSession(String uid, String name) {
-                    SharedPreferences prefs = mContext.getSharedPreferences("FastChatPrefs", MODE_PRIVATE);
-                    prefs.edit().putString("user_uid", uid).putString("user_name", name).apply();
-                    
-                    try {
-                        Intent serviceIntent = new Intent(mContext, RealtimeStreamService.class);
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            mContext.startForegroundService(serviceIntent);
-                        } else {
-                            mContext.startService(serviceIntent);
-                        }
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                }
+                  @JavascriptInterface
+                  public void updateUserSession(String uid, String name) {
+                      SharedPreferences prefs = mContext.getSharedPreferences("FastChatPrefs", MODE_PRIVATE);
+                      prefs.edit().putString("user_uid", uid).putString("user_name", name).apply();
+                      
+                      try {
+                          Intent serviceIntent = new Intent(mContext, RealtimeStreamService.class);
+                          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                              mContext.startForegroundService(serviceIntent);
+                          } else {
+                              mContext.startService(serviceIntent);
+                          }
+                      } catch (Exception e) {
+                          e.printStackTrace();
+                      }
+                  }
 
-                @JavascriptInterface
-                public void updateActiveChatPartner(String partnerUid) {
-                    MainActivity.activeChatPartnerUid = partnerUid;
-                }
-            }
-        }
-        EOF
+                  @JavascriptInterface
+                  public void updateActiveChatPartner(String partnerUid) {
+                      MainActivity.activeChatPartnerUid = partnerUid;
+                  }
+              }
+          }
+          EOF
 
-        # 5. RealtimeStreamService.java Engine
-        cat << 'EOF' > android/app/src/main/java/com/compiler/htmltoapk/RealtimeStreamService.java
-        package com.compiler.htmltoapk;
+          # 5. RealtimeStreamService.java Engine
+          cat << 'EOF' > android/app/src/main/java/com/compiler/htmltoapk/RealtimeStreamService.java
+          package com.compiler.htmltoapk;
 
-        import android.app.AlarmManager;
-        import android.app.Notification;
-        import android.app.NotificationChannel;
-        import android.app.NotificationManager;
-        import android.app.PendingIntent;
-        import android.app.Service;
-        import android.content.Context;
-        import android.content.Intent;
-        import android.content.SharedPreferences;
-        import android.media.RingtoneManager;
-        import android.os.Build;
-        import android.os.IBinder;
-        import android.os.SystemClock;
-        import androidx.core.app.NotificationCompat;
-        import java.io.BufferedReader;
-        import java.io.InputStreamReader;
-        import java.net.HttpURLConnection;
-        import java.net.URL;
-        import java.util.HashSet;
-        import org.json.JSONObject;
+          import android.app.AlarmManager;
+          import android.app.Notification;
+          import android.app.NotificationChannel;
+          import android.app.NotificationManager;
+          import android.app.PendingIntent;
+          import android.app.Service;
+          import android.content.Context;
+          import android.content.Intent;
+          import android.content.SharedPreferences;
+          import android.media.RingtoneManager;
+          import android.os.Build;
+          import android.os.IBinder;
+          import android.os.SystemClock;
+          import androidx.core.app.NotificationCompat;
+          import java.io.BufferedReader;
+          import java.io.InputStreamReader;
+          import java.net.HttpURLConnection;
+          import java.net.URL;
+          import java.util.HashSet;
+          import org.json.JSONObject;
 
-        public class RealtimeStreamService extends Service {
-            private static final String ENGINE_CHANNEL = "fastchat_engine_hub";
-            private static final String ALERT_CHANNEL = "fast_chat_secure_ultimate";
-            private boolean isListening = false;
-            private HashSet<String> deliveredKeys = new HashSet<>();
+          public class RealtimeStreamService extends Service {
+              private static final String ENGINE_CHANNEL = "fastchat_engine_hub";
+              private static final String ALERT_CHANNEL = "fast_chat_secure_ultimate";
+              private boolean isListening = false;
+              private HashSet<String> deliveredKeys = new HashSet<>();
 
-            @Override
-            public void onCreate() {
-                super.onCreate();
-            }
+              @Override
+              public void onCreate() {
+                  super.onCreate();
+              }
 
-            @Override
-            public int onStartCommand(Intent intent, int flags, int startId) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    NotificationChannel chan = new NotificationChannel(ENGINE_CHANNEL, "Background Pipeline", NotificationManager.IMPORTANCE_MIN);
-                    NotificationChannel alertChan = new NotificationChannel(ALERT_CHANNEL, "Message High Speed Alerts", NotificationManager.IMPORTANCE_HIGH);
-                    NotificationManager mgr = getSystemService(NotificationManager.class);
-                    if (mgr != null) {
-                        mgr.createNotificationChannel(chan);
-                        mgr.createNotificationChannel(alertChan);
-                    }
-                }
-                
-                Notification standardNotification = new NotificationCompat.Builder(this, ENGINE_CHANNEL)
-                        .setContentTitle("Fast Chat Router Core")
-                        .setContentText("Realtime Stream Socket Sync Online")
-                        .setSmallIcon(android.R.drawable.stat_notify_chat)
-                        .setPriority(NotificationCompat.PRIORITY_MIN)
-                        .build();
-                
-                startForeground(2, standardNotification);
+              @Override
+              public int onStartCommand(Intent intent, int flags, int startId) {
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                      NotificationChannel chan = new NotificationChannel(ENGINE_CHANNEL, "Background Pipeline", NotificationManager.IMPORTANCE_MIN);
+                      NotificationChannel alertChan = new NotificationChannel(ALERT_CHANNEL, "Message High Speed Alerts", NotificationManager.IMPORTANCE_HIGH);
+                      NotificationManager mgr = getSystemService(NotificationManager.class);
+                      if (mgr != null) {
+                          mgr.createNotificationChannel(chan);
+                          mgr.createNotificationChannel(alertChan);
+                      }
+                  }
+                  
+                  Notification standardNotification = new NotificationCompat.Builder(this, ENGINE_CHANNEL)
+                          .setContentTitle("Fast Chat Router Core")
+                          .setContentText("Realtime Stream Socket Sync Online")
+                          .setSmallIcon(android.R.drawable.stat_notify_chat)
+                          .setPriority(NotificationCompat.PRIORITY_MIN)
+                          .build();
+                  
+                  startForeground(2, standardNotification);
 
-                if (!isListening) {
-                    isListening = true;
-                    scheduleNextSystemFlush(this);
-                    openStreamingSocket();
-                }
-                
-                return START_STICKY;
-            }
+                  if (!isListening) {
+                      isListening = true;
+                      scheduleNextSystemFlush(this);
+                      openStreamingSocket();
+                  }
+                  
+                  return START_STICKY;
+              }
 
-            private void scheduleNextSystemFlush(Context context) {
-                Intent resetIntent = new Intent(context, Restarter.class);
-                resetIntent.setAction("com.compiler.htmltoapk.RESET_SIGNAL_PIPE");
-                
-                int pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT;
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    pendingFlags |= PendingIntent.FLAG_IMMUTABLE;
-                }
-                
-                PendingIntent pi = PendingIntent.getBroadcast(context, 0, resetIntent, pendingFlags);
-                AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-                
-                if (am != null) {
-                    long triggerTimeMs = SystemClock.elapsedRealtime() + (30 * 60 * 1000);
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                        am.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerTimeMs, pi);
-                    } else {
-                        am.setExact(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerTimeMs, pi);
-                    }
-                }
-            }
+              private void scheduleNextSystemFlush(Context context) {
+                  Intent resetIntent = new Intent(context, Restarter.class);
+                  resetIntent.setAction("com.compiler.htmltoapk.RESET_SIGNAL_PIPE");
+                  
+                  int pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT;
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                      pendingFlags |= PendingIntent.FLAG_IMMUTABLE;
+                  }
+                  
+                  PendingIntent pi = PendingIntent.getBroadcast(context, 0, resetIntent, pendingFlags);
+                  AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+                  
+                  if (am != null) {
+                      long triggerTimeMs = SystemClock.elapsedRealtime() + (30 * 60 * 1000);
+                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                          am.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerTimeMs, pi);
+                      } else {
+                          am.setExact(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerTimeMs, pi);
+                      }
+                  }
+              }
 
-            private void openStreamingSocket() {
-                new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        boolean graceBootMode = true;
-                        while (isListening) {
-                            try {
-                                SharedPreferences prefs = getSharedPreferences("FastChatPrefs", MODE_PRIVATE);
-                                String myUid = prefs.getString("user_uid", "");
+              private void openStreamingSocket() {
+                  new Thread(new Runnable() {
+                      @Override
+                      public void run() {
+                          boolean graceBootMode = true;
+                          while (isListening) {
+                              try {
+                                  SharedPreferences prefs = getSharedPreferences("FastChatPrefs", MODE_PRIVATE);
+                                  String myUid = prefs.getString("user_uid", "");
 
-                                if (myUid.isEmpty()) {
-                                    Thread.sleep(4000);
-                                    continue;
-                                }
+                                  if (myUid.isEmpty()) {
+                                      Thread.sleep(4000);
+                                      continue;
+                                  }
 
-                                URL url = new URL("https://movi-hub-default-rtdb.firebaseio.com/secure_chats.json");
-                                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                                conn.setRequestProperty("Accept", "text/event-stream");
-                                conn.setReadTimeout(0);
+                                  URL url = new URL("https://movi-hub-default-rtdb.firebaseio.com/secure_chats.json");
+                                  HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                                  conn.setRequestProperty("Accept", "text/event-stream");
+                                  conn.setReadTimeout(0);
 
-                                BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                                String line;
-                                while (isListening && (line = reader.readLine()) != null) {
-                                    if (line.startsWith("data:")) {
-                                        String rawJson = line.substring(5).trim();
-                                        if (rawJson.equals("null") || rawJson.isEmpty()) continue;
+                                  BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                                  String line;
+                                  while (isListening && (line = reader.readLine()) != null) {
+                                      if (line.startsWith("data:")) {
+                                          String rawJson = line.substring(5).trim();
+                                          if (rawJson.equals("null") || rawJson.isEmpty()) continue;
 
-                                        JSONObject streamPacket = new JSONObject(rawJson);
-                                        if (streamPacket.has("path") && streamPacket.has("data")) {
-                                            String path = streamPacket.getString("path");
-                                            Object dataObj = streamPacket.get("data");
+                                          JSONObject streamPacket = new JSONObject(rawJson);
+                                          if (streamPacket.has("path") && streamPacket.has("data")) {
+                                              String path = streamPacket.getString("path");
+                                              Object dataObj = streamPacket.get("data");
 
-                                            if (dataObj instanceof JSONObject) {
-                                                JSONObject dataJson = (JSONObject) dataObj;
+                                              if (dataObj instanceof JSONObject) {
+                                                  JSONObject dataJson = (JSONObject) dataObj;
 
-                                                if (path.equals("/")) {
-                                                    if (graceBootMode) {
-                                                        graceBootMode = false;
-                                                        continue;
-                                                    }
-                                                } else if (path.contains(myUid)) {
-                                                    parseMessagePayloadAndAlert(dataJson, myUid);
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                                reader.close();
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                                try { Thread.sleep(3000); } catch (Exception ignored) {}
-                            }
-                        }
-                    }
-                }).start();
-            }
+                                                  if (path.equals("/")) {
+                                                      if (graceBootMode) {
+                                                          graceBootMode = false;
+                                                          continue;
+                                                      }
+                                                  } else if (path.contains(myUid)) {
+                                                      parseMessagePayloadAndAlert(dataJson, myUid);
+                                                  }
+                                              }
+                                          }
+                                      }
+                                  }
+                                  reader.close();
+                              } catch (Exception e) {
+                                  e.printStackTrace();
+                                  try { Thread.sleep(3000); } catch (Exception ignored) {}
+                              }
+                          }
+                      }
+                  }).start();
+              }
 
-            private void parseMessagePayloadAndAlert(JSONObject data, String myUid) {
-                try {
-                    if (data.has("senderUid") && data.has("receiverUid")) {
-                        String senderUid = data.getString("senderUid");
-                        String receiverUid = data.getString("receiverUid");
-                        String senderName = data.getString("senderName");
-                        String text = data.optString("text", "");
-                        String timestamp = data.optString("timestamp", "");
-                        String status = data.optString("status", "sent");
+              private void parseMessagePayloadAndAlert(JSONObject data, String myUid) {
+                  try {
+                      if (data.has("senderUid") && data.has("receiverUid")) {
+                          String senderUid = data.getString("senderUid");
+                          String receiverUid = data.getString("receiverUid");
+                          String senderName = data.getString("senderName");
+                          String text = data.optString("text", "");
+                          String timestamp = data.optString("timestamp", "");
+                          String status = data.optString("status", "sent");
 
-                        String messageUniqueFingerprint = senderUid + "_" + timestamp;
+                          String messageUniqueFingerprint = senderUid + "_" + timestamp;
 
-                        if (!senderUid.equals(myUid) && receiverUid.equals(myUid) && !status.equals("read")) {
-                            if (!deliveredKeys.contains(messageUniqueFingerprint)) {
-                                deliveredKeys.add(messageUniqueFingerprint);
+                          if (!senderUid.equals(myUid) && receiverUid.equals(myUid) && !status.equals("read")) {
+                              if (!deliveredKeys.contains(messageUniqueFingerprint)) {
+                                  deliveredKeys.add(messageUniqueFingerprint);
 
-                                if (!MainActivity.isAppOpen || !MainActivity.activeChatPartnerUid.equals(senderUid)) {
-                                    triggerInstantPushAlert(senderName, text.isEmpty() ? "🖼️ Shared an Image" : text);
-                                }
-                            }
-                        }
-                    } else {
-                        java.util.Iterator<String> structuralKeys = data.keys();
-                        while (structuralKeys.hasNext()) {
-                            String uniqueNodeKey = structuralKeys.next();
-                            Object innerObj = data.get(uniqueNodeKey);
-                            if (innerObj instanceof JSONObject) {
-                                parseMessagePayloadAndAlert((JSONObject) innerObj, myUid);
-                            }
-                        }
-                    }
-                } catch (Exception ignored) {}
-            }
+                                  if (!MainActivity.isAppOpen || !MainActivity.activeChatPartnerUid.equals(senderUid)) {
+                                      triggerInstantPushAlert(senderName, text.isEmpty() ? "🖼️ Shared an Image" : text);
+                                  }
+                              }
+                          }
+                      } else {
+                          java.util.Iterator<String> structuralKeys = data.keys();
+                          while (structuralKeys.hasNext()) {
+                              String uniqueNodeKey = structuralKeys.next();
+                              Object innerObj = data.get(uniqueNodeKey);
+                              if (innerObj instanceof JSONObject) {
+                                  parseMessagePayloadAndAlert((JSONObject) innerObj, myUid);
+                              }
+                          }
+                      }
+                  } catch (Exception ignored) {}
+              }
 
-            private void triggerInstantPushAlert(String sender, String body) {
-                NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-                if (manager == null) return;
+              private void triggerInstantPushAlert(String sender, String body) {
+                  NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+                  if (manager == null) return;
 
-                NotificationCompat.Builder alertBuilder = new NotificationCompat.Builder(this, ALERT_CHANNEL)
-                        .setSmallIcon(android.R.drawable.stat_notify_chat)
-                        .setContentTitle(sender)
-                        .setContentText(body)
-                        .setPriority(NotificationCompat.PRIORITY_HIGH)
-                        .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
-                        .setDefaults(NotificationCompat.DEFAULT_ALL)
-                        .setAutoCancel(true);
+                  NotificationCompat.Builder alertBuilder = new NotificationCompat.Builder(this, ALERT_CHANNEL)
+                          .setSmallIcon(android.R.drawable.stat_notify_chat)
+                          .setContentTitle(sender)
+                          .setContentText(body)
+                          .setPriority(NotificationCompat.PRIORITY_HIGH)
+                          .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
+                          .setDefaults(NotificationCompat.DEFAULT_ALL)
+                          .setAutoCancel(true);
 
-                manager.notify((int) System.currentTimeMillis(), alertBuilder.build());
-            }
+                  manager.notify((int) System.currentTimeMillis(), alertBuilder.build());
+              }
 
-            @Override
-            public IBinder onBind(Intent intent) { return null; }
+              @Override
+              public IBinder onBind(Intent intent) { return null; }
 
-            @Override
-            public void onDestroy() {
-                isListening = false;
-                super.onDestroy();
-            }
-        }
-        EOF
+              @Override
+              public void onDestroy() {
+                  isListening = false;
+                  super.onDestroy();
+              }
+          }
+          EOF
 
-        # 5.5 Restarter.java Setup
-        cat << 'EOF' > android/app/src/main/java/com/compiler/htmltoapk/Restarter.java
-        package com.compiler.htmltoapk;
+          # 5.5 Restarter.java Setup
+          cat << 'EOF' > android/app/src/main/java/com/compiler/htmltoapk/Restarter.java
+          package com.compiler.htmltoapk;
 
-        import android.content.BroadcastReceiver;
-        import android.content.Context;
-        import android.content.Intent;
-        import android.os.Build;
+          import android.content.BroadcastReceiver;
+          import android.content.Context;
+          import android.content.Intent;
+          import android.os.Build;
 
-        public class Restarter extends BroadcastReceiver {
-            @Override
-       
+          public class Restarter extends BroadcastReceiver {
+              @Override
+              public void onReceive(Context context, Intent intent) {
+                  if (intent != null && "com.compiler.htmltoapk.RESET_SIGNAL_PIPE".equals(intent.getAction())) {
+                      try {
+                          Intent serviceIntent = new Intent(context, RealtimeStreamService.class);
+                          context.stopService(serviceIntent);
+                          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                              context.startForegroundService(serviceIntent);
+                          } else {
+                              context.startService(serviceIntent);
+                          }
+                      } catch (Exception e) {
+                          e.printStackTrace();
+                      }
+                  }
+              }
+          }
+          EOF
+
+          # 6. Root build.gradle Setup
+          cat << 'EOF' > android/build.gradle
+          buildscript {
+              repositories { google(); mavenCentral() }
+              dependencies { classpath 'com.android.tools.build:gradle:8.2.2' }
+          }
+          allprojects { repositories { google(); mavenCentral() } }
+          EOF
+
+          # 7. Settings.gradle Setup
+          cat << 'EOF' > android/settings.gradle
+          include ':app'
+          EOF
+
+          # 8. App-level build.gradle Setup
+          cat << 'EOF' > android/app/build.gradle
+          plugins { id 'com.android.application' }
+          android {
+              namespace "com.compiler.htmltoapk"
+              compileSdk 34
+              defaultConfig {
+                  applicationId "com.compiler.htmltoapk"
+                  minSdk 24
+                  targetSdk 34
+                  versionCode 1
+                  versionName "3.0"
+                  ndk { abiFilters "arm64-v8a", "armeabi-v7a" }
+              }
+              signingConfigs {
+                  debug {
+                      storeFile file("../../github_keystore/debug.keystore")
+                      storePassword "android"
+                      keyAlias "androiddebugkey"
+                      keyPassword "android"
+                  }
+              }
+              buildTypes {
+                  debug {
+                      signingConfig signingConfigs.debug
+                  }
+              }
+              lintOptions {
+                  checkReleaseBuilds false
+                  abortOnError false
+              }
+          }
+          dependencies { 
+              implementation 'androidx.core:core:1.12.0'
+              implementation 'androidx.appcompat:appcompat:1.6.1'
+              implementation 'com.google.android.material:material:1.11.0'
+          }
+          EOF
+
+      - name: Inject Custom Assets and Logo Resources
+        run: |
+          if [ -f "logo.png" ]; then
+            cp logo.png android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+          fi
+
+          if [ -f "index.html" ]; then
+            cp index.html android/app/src/main/assets/index.html
+          else
+            echo "<h1>Fast Chat Setup Error</h1>" > android/app/src/main/assets/index.html
+          fi
+
+      - name: Build Android Project wrapper
+        run: |
+          cd android
+          gradle wrapper --gradle-version 8.2 --distribution-type bin
+          chmod +x gradlew
+
+      - name: Compile and Generate Debug APK Bundle
+        run: |
+          cd android
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Prepare Final Package File Output Mappings
+        run: |
+          mkdir -p build-output-container
+          if [ -f "android/app/build/outputs/apk/debug/app-debug.apk" ]; then
+            cp android/app/build/outputs/apk/debug/app-debug.apk build-output-container/FastChat_Pro_v3.apk
+          else
+            echo "Build failed to trace system output bin."
+            exit 1
+          fi
+
+      - name: Deploy Compiled APK straight into GitHub Summary Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: FastChat-Compiled-APK-Package
+          path: build-output-container/
+          retention-days: 5

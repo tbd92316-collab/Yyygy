@@ -40,7 +40,7 @@ jobs:
         org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
         EOF
 
-        # 2. AndroidManifest.xml (Fixed Receiver Path Error)
+        # 2. AndroidManifest.xml (Fixed Receiver and Service nodes)
         cat << 'EOF' > android/app/src/main/AndroidManifest.xml
         <manifest xmlns:android="http://schemas.android.com/apk/res/android">
             <uses-permission android:name="android.permission.INTERNET" />
@@ -90,7 +90,7 @@ jobs:
             android:layout_height="match_parent" />
         EOF
 
-        # 4. MainActivity.java
+        # 4. MainActivity.java (Safe State Lifecycles)
         cat << 'EOF' > android/app/src/main/java/com/compiler/htmltoapk/MainActivity.java
         package com.compiler.htmltoapk;
         
@@ -184,11 +184,15 @@ jobs:
                     SharedPreferences prefs = mContext.getSharedPreferences("FastChatPrefs", MODE_PRIVATE);
                     prefs.edit().putString("user_uid", uid).putString("user_name", name).apply();
                     
-                    Intent serviceIntent = new Intent(mContext, RealtimeStreamService.class);
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        mContext.startForegroundService(serviceIntent);
-                    } else {
-                        mContext.startService(serviceIntent);
+                    try {
+                        Intent serviceIntent = new Intent(mContext, RealtimeStreamService.class);
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            mContext.startForegroundService(serviceIntent);
+                        } else {
+                            mContext.startService(serviceIntent);
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
                     }
                 }
 
@@ -200,7 +204,7 @@ jobs:
         }
         EOF
 
-        # 5. RealtimeStreamService.java Engine
+        # 5. RealtimeStreamService.java Engine (Fixed Strict Foreground Exception)
         cat << 'EOF' > android/app/src/main/java/com/compiler/htmltoapk/RealtimeStreamService.java
         package com.compiler.htmltoapk;
 
@@ -234,6 +238,11 @@ jobs:
             @Override
             public void onCreate() {
                 super.onCreate();
+            }
+
+            @Override
+            public int onStartCommand(Intent intent, int flags, int startId) {
+                // INSTANT OPERATION: Build Notification channels immediately before any logical code runs to block OS crash loops
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     NotificationChannel chan = new NotificationChannel(ENGINE_CHANNEL, "Background Pipeline", NotificationManager.IMPORTANCE_MIN);
                     NotificationChannel alertChan = new NotificationChannel(ALERT_CHANNEL, "Message High Speed Alerts", NotificationManager.IMPORTANCE_HIGH);
@@ -248,18 +257,18 @@ jobs:
                         .setContentTitle("Fast Chat Router Core")
                         .setContentText("Realtime Stream Socket Sync Online")
                         .setSmallIcon(android.R.drawable.stat_notify_chat)
+                        .setPriority(NotificationCompat.PRIORITY_MIN)
                         .build();
+                
+                // Immediately bind foreground session state
                 startForeground(2, standardNotification);
 
-                scheduleNextSystemFlush(this);
-            }
-
-            @Override
-            public int onStartCommand(Intent intent, int flags, int startId) {
                 if (!isListening) {
                     isListening = true;
+                    scheduleNextSystemFlush(this);
                     openStreamingSocket();
                 }
+                
                 return START_STICKY;
             }
 
@@ -267,12 +276,12 @@ jobs:
                 Intent resetIntent = new Intent(context, Restarter.class);
                 resetIntent.setAction("com.compiler.htmltoapk.RESET_SIGNAL_PIPE");
                 
-                int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+                int pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT;
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    flags |= PendingIntent.FLAG_IMMUTABLE;
+                    pendingFlags |= PendingIntent.FLAG_IMMUTABLE;
                 }
                 
-                PendingIntent pi = PendingIntent.getBroadcast(context, 0, resetIntent, flags);
+                PendingIntent pi = PendingIntent.getBroadcast(context, 0, resetIntent, pendingFlags);
                 AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
                 
                 if (am != null) {
@@ -359,7 +368,7 @@ jobs:
                                 deliveredKeys.add(messageUniqueFingerprint);
 
                                 if (!MainActivity.isAppOpen || !MainActivity.activeChatPartnerUid.equals(senderUid)) {
-                                    triggerInstantPushAlert(senderName, text.isEmpty() ? "🖼️ Shared an Image Gallery item" : text);
+                                    triggerInstantPushAlert(senderName, text.isEmpty() ? "🖼️ Shared an Image" : text);
                                 }
                             }
                         }
@@ -403,7 +412,7 @@ jobs:
         }
         EOF
 
-        # 5.5 Restarter.java Setup (Separated to bypass AAPT and escape syntax bugs)
+        # 5.5 Restarter.java Setup (Clean Initialization)
         cat << 'EOF' > android/app/src/main/java/com/compiler/htmltoapk/Restarter.java
         package com.compiler.htmltoapk;
 
@@ -416,12 +425,16 @@ jobs:
             @Override
             public void onReceive(Context context, Intent intent) {
                 if (intent != null && "com.compiler.htmltoapk.RESET_SIGNAL_PIPE".equals(intent.getAction())) {
-                    Intent serviceIntent = new Intent(context, RealtimeStreamService.class);
-                    context.stopService(serviceIntent);
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        context.startForegroundService(serviceIntent);
-                    } else {
-                        context.startService(serviceIntent);
+                    try {
+                        Intent serviceIntent = new Intent(context, RealtimeStreamService.class);
+                        context.stopService(serviceIntent);
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            context.startForegroundService(serviceIntent);
+                        } else {
+                            context.startService(serviceIntent);
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
                     }
                 }
             }

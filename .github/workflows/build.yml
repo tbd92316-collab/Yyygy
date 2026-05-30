@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository Code
+      - name: Checkout Repository Source
         uses: actions/checkout@v4
 
       - name: Set up Java JDK 17
@@ -40,7 +40,7 @@ jobs:
           org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
           EOF
 
-          # 2. AndroidManifest.xml
+          # 2. AndroidManifest.xml (FIXED RECEIVER ATTRIBUTE ERROR)
           cat << 'EOF' > android/app/src/main/AndroidManifest.xml
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <uses-permission android:name="android.permission.INTERNET" />
@@ -90,7 +90,7 @@ jobs:
               android:layout_height="match_parent" />
           EOF
 
-          # 4. MainActivity.java (FIXED: Added runOnUiThread to handle javascript submit elements safely)
+          # 4. MainActivity.java
           cat << 'EOF' > android/app/src/main/java/com/compiler/htmltoapk/MainActivity.java
           package com.compiler.htmltoapk;
           
@@ -181,7 +181,6 @@ jobs:
 
                   @JavascriptInterface
                   public void updateUserSession(final String uid, final String name) {
-                      // CRITICAL FIX: Directing asynchronous web thread inputs directly onto Android UI loop thread to stop crash signals
                       runOnUiThread(new Runnable() {
                           @Override
                           public void run() {
@@ -338,6 +337,7 @@ jobs:
                                                       if (graceBootMode) {
                                                           graceBootMode = false;
                                                           continue;
+                                                          
                                                       }
                                                   } else if (path.contains(myUid)) {
                                                       parseMessagePayloadAndAlert(dataJson, myUid);
@@ -395,4 +395,146 @@ jobs:
                   if (manager == null) return;
 
                   NotificationCompat.Builder alertBuilder = new NotificationCompat.Builder(this, ALERT_CHANNEL)
-                          .se
+                          .setSmallIcon(android.R.drawable.stat_notify_chat)
+                          .setContentTitle(sender)
+                          .setContentText(body)
+                          .setPriority(NotificationCompat.PRIORITY_HIGH)
+                          .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
+                          .setDefaults(NotificationCompat.DEFAULT_ALL)
+                          .setAutoCancel(true);
+
+                  manager.notify((int) System.currentTimeMillis(), alertBuilder.build());
+              }
+
+              @Override
+              public IBinder onBind(Intent intent) { return null; }
+
+              @Override
+              public void onDestroy() {
+                  isListening = false;
+                  super.onDestroy();
+              }
+          }
+          EOF
+
+          # 5.5 Restarter.java Setup
+          cat << 'EOF' > android/app/src/main/java/com/compiler/htmltoapk/Restarter.java
+          package com.compiler.htmltoapk;
+
+          import android.content.BroadcastReceiver;
+          import android.content.Context;
+          import android.content.Intent;
+          import android.os.Build;
+
+          public class Restarter extends BroadcastReceiver {
+              @Override
+              public void onReceive(Context context, Intent intent) {
+                  if (intent != null && "com.compiler.htmltoapk.RESET_SIGNAL_PIPE".equals(intent.getAction())) {
+                      try {
+                          Intent serviceIntent = new Intent(context, RealtimeStreamService.class);
+                          context.stopService(serviceIntent);
+                          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                              context.startForegroundService(serviceIntent);
+                          } else {
+                              context.startService(serviceIntent);
+                          }
+                      } catch (Exception e) {
+                          e.printStackTrace();
+                      }
+                  }
+              }
+          }
+          EOF
+
+          # 6. Root build.gradle Setup
+          cat << 'EOF' > android/build.gradle
+          buildscript {
+              repositories { google(); mavenCentral() }
+              dependencies { classpath 'com.android.tools.build:gradle:8.2.2' }
+          }
+          allprojects { repositories { google(); mavenCentral() } }
+          EOF
+
+          # 7. Settings.gradle Setup
+          cat << 'EOF' > android/settings.gradle
+          include ':app'
+          EOF
+
+          # 8. App-level build.gradle Setup
+          cat << 'EOF' > android/app/build.gradle
+          plugins { id 'com.android.application' }
+          android {
+              namespace "com.compiler.htmltoapk"
+              compileSdk 34
+              defaultConfig {
+                  applicationId "com.compiler.htmltoapk"
+                  minSdk 24
+                  targetSdk 34
+                  versionCode 1
+                  versionName "3.0"
+                  ndk { abiFilters "arm64-v8a", "armeabi-v7a" }
+              }
+              signingConfigs {
+                  debug {
+                      storeFile file("../../github_keystore/debug.keystore")
+                      storePassword "android"
+                      keyAlias "androiddebugkey"
+                      keyPassword "android"
+                  }
+              }
+              buildTypes {
+                  debug {
+                      signingConfig signingConfigs.debug
+                  }
+              }
+              lintOptions {
+                  checkReleaseBuilds false
+                  abortOnError false
+              }
+          }
+          dependencies { 
+              implementation 'androidx.core:core:1.12.0'
+              implementation 'androidx.appcompat:appcompat:1.6.1'
+              implementation 'com.google.android.material:material:1.11.0'
+          }
+          EOF
+
+      - name: Inject Custom Assets and Logo Resources
+        run: |
+          if [ -f "logo.png" ]; then
+            cp logo.png android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+          fi
+
+          if [ -f "index.html" ]; then
+            cp index.html android/app/src/main/assets/index.html
+          else
+            echo "<h1>Fast Chat Setup Error</h1>" > android/app/src/main/assets/index.html
+          fi
+
+      - name: Build Android Project wrapper
+        run: |
+          cd android
+          gradle wrapper --gradle-version 8.2 --distribution-type bin
+          chmod +x gradlew
+
+      - name: Compile and Generate Debug APK Bundle
+        run: |
+          cd android
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Prepare Final Package File Output Mappings
+        run: |
+          mkdir -p build-output-container
+          if [ -f "android/app/build/outputs/apk/debug/app-debug.apk" ]; then
+            cp android/app/build/outputs/apk/debug/app-debug.apk build-output-container/FastChat_Pro_v3.apk
+          else
+            echo "Build failed to trace system output bin."
+            exit 1
+          fi
+
+      - name: Deploy Compiled APK straight into GitHub Summary Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: FastChat-Compiled-APK-Package
+          path: build-output-container/
+          retention-days: 5

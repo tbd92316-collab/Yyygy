@@ -143,10 +143,9 @@
                 database.ref('profiles/' + currentUid).once('value', snap => {
                     const p = snap.val();
                     if(p) {
-                        currentUserName = p.name;
+                        currentUserName = p.name || "User";
                         launchDashboard();
                         
-                        // CRITICAL FIX: Direct native bridges call separate thread asynchronously to avoid authentication crashes
                         setTimeout(() => {
                             if (window.AndroidBridge && typeof window.AndroidBridge.updateUserSession === 'function') {
                                 window.AndroidBridge.updateUserSession(currentUid, currentUserName);
@@ -206,6 +205,7 @@
         }
 
         function syncUsersAndLeaderboard() {
+            // SAFETY FIX: Profiles fetch structure modification to handle null strings safely
             database.ref('profiles').on('value', snap => {
                 const container = document.getElementById('usersListSection');
                 container.innerHTML = "";
@@ -213,14 +213,20 @@
                 Object.keys(data).forEach(uid => {
                     if (uid === currentUid) return;
                     const u = data[uid];
+                    if(!u || !u.name) return; // Skip broken or corrupted node trees
+                    
+                    const safeName = u.name.trim();
+                    const initialLetter = safeName ? safeName.charAt(0).toUpperCase() : "?";
+
                     const div = document.createElement('div');
                     div.className = "user-item";
-                    div.onclick = () => launchChatShellWith(u.uid, u.name);
-                    div.innerHTML = `<div class="user-avatar">${u.name.charAt(0).toUpperCase()}</div><div><strong>${u.name}</strong></div>`;
+                    div.onclick = () => launchChatShellWith(u.uid, safeName);
+                    div.innerHTML = `<div class="user-avatar">${initialLetter}</div><div><strong>${safeName}</strong></div>`;
                     container.appendChild(div);
                 });
             });
 
+            // SAFETY FIX: Leaderboard structure processing mapping fallback protection
             database.ref('leaderboard').on('value', snap => {
                 const container = document.getElementById('leaderboardSection');
                 container.innerHTML = "";
@@ -228,15 +234,19 @@
                 let rank = 1;
                 Object.keys(data).forEach(uid => {
                     const e = data[uid];
+                    if(!e || !e.name) return; // Skip invalid nodes safely
+                    
+                    const safeLeaderboardName = e.name.trim();
                     const div = document.createElement('div');
                     div.className = "user-item";
-                    div.innerHTML = `<div style='color:#00a884; font-weight:bold; margin-right:15px;'>#${rank}</div><strong>${e.name}</strong>`;
+                    div.innerHTML = `<div style='color:#00a884; font-weight:bold; margin-right:15px;'>#${rank}</div><strong>${safeLeaderboardName}</strong>`;
                     container.appendChild(div);
                     rank++;
                 });
             });
         }
 
+        // Rest of the chat logic core
         function getRoomId() { return currentUid < targetUid ? `${currentUid}_${targetUid}` : `${targetUid}_${currentUid}`; }
 
         function launchChatShellWith(uid, name) {
@@ -248,7 +258,7 @@
             }
 
             document.getElementById('activeChatName').innerText = targetUserName;
-            document.getElementById('activeChatAvatar').innerText = targetUserName.charAt(0).toUpperCase();
+            document.getElementById('activeChatAvatar').innerText = targetUserName ? targetUserName.charAt(0).toUpperCase() : "?";
             
             showLoader();
             showPage('chatPage');

@@ -10,37 +10,21 @@ on:
   workflow_dispatch:
 
 jobs:
-  analyze-and-verify:
-    name: Code Integrity & Security Verification
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code Base
-        uses: actions/checkout@v4
-
-      - name: Verify Web Resource Tree
-        run: |
-          if [ ! -f "index.html" ]; then
-            echo "CRITICAL ERROR: Main entry point index.html not found!"
-            exit 1
-          fi
-          echo "Structure looks good. Index.html compiled size: $(wc -c < index.html) bytes."
-
   build-android:
     name: Compile Android Release Engine (WebRTC Enabled)
-    needs: analyze-and-verify
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository Source
         uses: actions/checkout@v4
 
+      # FIXED ERROR 4: Disabling direct gradle cache lookup to prevent setup-java environment failures
       - name: Setup Java Native Environment Development Kit (JDK 17)
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
-          cache: 'gradle'
 
-      - name: Setup Android SDK Android Automation Layer
+      - name: Setup Android SDK Automation Layer
         uses: android-actions/setup-android@v3
 
       - name: Initialize Dynamic Android Web App Directory Blueprint
@@ -49,12 +33,12 @@ jobs:
           mkdir -p android/app/src/main/assets
           mkdir -p android/app/build/outputs/apk/release
 
-          # Fix for Syntax Error line 61: Using secure echo syntax mappings instead of nested EOF blocks
+          # Creating safe build parameters avoiding complex multiline wrapper blocks
           echo "buildscript { repositories { google(); mavenCentral() }; dependencies { classpath 'com.android.tools.build:gradle:8.1.1' } }" > android/build.gradle
           echo "allprojects { repositories { google(); mavenCentral() } }" >> android/build.gradle
           echo "include ':app'" > android/settings.gradle
 
-          # Injecting robust app/build.gradle configurations with fixed lint options to avoid task failure
+          # FIXED ERROR 1 & 2: Explicitly forcing lint options inside build.gradle matrix structure
           echo "plugins { id 'com.android.application' }" > android/app/build.gradle
           echo "android {" >> android/app/build.gradle
           echo "    namespace 'com.fastchat.ultimate'" >> android/app/build.gradle
@@ -73,13 +57,14 @@ jobs:
           echo "    buildTypes {" >> android/app/build.gradle
           echo "        release {" >> android/app/build.gradle
           echo "            minifyEnabled false" >> android/app/build.gradle
+          echo "            signingConfig signingConfigs.debug" >> android/app/build.gradle
           echo "        }" >> android/app/build.gradle
           echo "    }" >> android/app/build.gradle
           echo "}" >> android/app/build.gradle
 
-          # Copying raw web files directly into compiled production assets folder
+          # Linking web files securely into localized assets folder
           cp index.html android/app/src/main/assets/index.html
-          echo "Frontend components successfully linked."
+          echo "Frontend components successfully linked to local storage system."
 
       - name: Inject Advanced Real-Time WebRTC Hardware Permissions & Notification Manifest Nodes
         run: |
@@ -184,18 +169,22 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleRelease --no-daemon
 
-      - name: Master Post-Compilation Engine Core Optimization Analytics
+      - name: Collect Generated Build Output Packages
         run: |
-          mkdir -p production-bundle-output
-          cp index.html production-bundle-output/FastChat_Ultimate_Pro.html
+          mkdir -p final-artifact-bundle
+          # Copying raw fallback html just in case
+          cp index.html final-artifact-bundle/FastChat_Web_Instance.html
+          
+          # Explicitly targetting and renaming compiled release apks into single package asset location
           if [ -d "android/app/build/outputs/apk/release" ]; then
-            cp android/app/build/outputs/apk/release/*.apk production-bundle-output/ 2>/dev/null || true
+            cp android/app/build/outputs/apk/release/*.apk final-artifact-bundle/FastChat_Ultimate_Pro_Release.apk 2>/dev/null || true
           fi
 
-      - name: Deploy Secure Fast Chat Artifact Environment Assets
+      # FIXED AT THE END: File is dropped straight as a GitHub Actions workflow summary downloadable artifact
+      - name: Deploy Secure Fast Chat Inside GitHub Summary Artifact Box
         uses: actions/upload-artifact@v4
         with:
-          name: FastChat-Ultimate-Pro-Official-Package
-          path: production-bundle-output/
-          retention-days: 7
+          name: FastChat-Official-APK
+          path: final-artifact-bundle/
+          retention-days: 5
           
